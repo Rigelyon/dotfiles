@@ -1,25 +1,28 @@
 #!/bin/bash
 
-# Check the number of arguments
-if [ "$#" -ne 2 ]; then
-    echo "Usage: $0 <path_to_dotfiles> <package_name>"
-    exit 1
-fi
+DOTFILES_DIR="$HOME/dotfiles"
 
-DOTFILES_DIR="$1"
-PACKAGE_NAME="$2"
-
-# Check if the dotfiles directory and package exist
 if [ ! -d "$DOTFILES_DIR" ]; then
-    echo "Error: Dotfiles directory '$DOTFILES_DIR' not found."
+    DOTFILES_DIR="$(dirname "$(realpath "$0")")"
+fi
+
+if [ "$#" -ne 1 ]; then
+    echo "Usage: $0 <package_name>"
+    echo "Example: $0 zsh"
     exit 1
 fi
+
+PACKAGE_NAME="$1"
 
 if [ ! -d "$DOTFILES_DIR/$PACKAGE_NAME" ]; then
     echo "Error: Package '$PACKAGE_NAME' not found in '$DOTFILES_DIR'."
     exit 1
 fi
 
-# Run unstow
-stow -D -d "$DOTFILES_DIR" -t "$HOME" "$PACKAGE_NAME"
+if [ "$DOTFILES_DIR" == "$HOME/dotfiles" ]; then
+    stow -D "$PACKAGE_NAME"
+else
+    stow -D -d "$DOTFILES_DIR" -t "$HOME" "$PACKAGE_NAME"
+fi
+
 echo "Package '$PACKAGE_NAME' has been unlinked from $HOME"
