@@ -27,18 +27,20 @@ The files and folders inside each package should reflect their final positions i
 
 ## Usage with Scripts
 
+Script are used to simplified the usage of the command. Dynamically check if the dotfiles directory is in the home directory or not
+
 ### 1. Stow (Create Symlink)
 
 Run:
 
 ```bash
-bash stow.sh <path_to_dotfiles> <package_name>
+bash stow.sh <package_name>
 ```
 
 Example:
 
 ```bash
-bash stow.sh ~/Repository/dotfiles hypr
+bash stow.sh hypr
 ```
 
 This script will create a symlink from `~/Repository/dotfiles/hypr/.config/hypr` to `~/.config/hypr` for the Hyprland package.
@@ -48,13 +50,13 @@ This script will create a symlink from `~/Repository/dotfiles/hypr/.config/hypr`
 Run:
 
 ```bash
-bash unstow.sh <path_to_dotfiles> <package_name>
+bash unstow.sh <package_name>
 ```
 
 Example:
 
 ```bash
-bash unstow.sh ~/Repository/dotfiles hypr
+bash unstow.sh hypr
 ```
 
 This script will remove the symlink `~/.config/hypr` created by stow.
