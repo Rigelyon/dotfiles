@@ -1,8 +1,6 @@
 #!/bin/zsh
 # install.sh - Run all install scripts in the install directory with confirmation for each
 
-INSTALL_DIR="$(dirname "$0")/install"
-
 # Ensure all scripts in the install directory are executable
 chmod +x "$INSTALL_DIR"/*
 
@@ -12,7 +10,9 @@ if [ ! -d "$INSTALL_DIR" ]; then
 fi
 
 confirm_all=false
-if [[ "$1" == "-y" ]]; then
+read -q "REPLY_ALL?$Install all without prompting for each? [y/N]"
+echo
+if [[ $REPLY_ALL =~ ^[Yy]$ ]]; then
   confirm_all=true
 fi
 
@@ -26,7 +26,7 @@ for script in "$INSTALL_DIR"/*; do
     if $confirm_all; then
       REPLY="y"
     else
-      read -q "REPLY?Do you want to install $app_name$extra_msg? [y/N] "
+      read -q "REPLY?Do you want to install $app_name$extra_msg? [y/N]"
       echo
     fi
     if [[ $REPLY =~ ^[Yy]$ ]]; then

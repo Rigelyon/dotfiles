@@ -9,9 +9,9 @@ else
   curl -fsSL https://raw.githubusercontent.com/spicetify/cli/main/install.sh | sh
 fi
 
-# Find Flatpak Spotify client directory
-SPOTIFY_PATH=$(find /var/lib/flatpak/app/com.spotify.Client/ -type d -path '*/files/extra/share/spotify' | head -n 1)
-if [ -z "$SPOTIFY_PATH" ]; then
+# Flatpak Spotify client directory
+SPOTIFY_PATH="/var/lib/flatpak/app/com.spotify.Client/x86_64/stable/active/files/extra/share/spotify"
+if [ ! -d "$SPOTIFY_PATH" ]; then
   echo "Spotify client directory not found!"
   exit 1
 fi

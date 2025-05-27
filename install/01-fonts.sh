@@ -5,6 +5,12 @@ FONT_NAME="JetBrainsMonoNerdFont"
 FONT_URL="https://github.com/ryanoasis/nerd-fonts/releases/latest/download/JetBrainsMono.zip"
 FONT_DIR="$HOME/.local/share/fonts/$FONT_NAME"
 
+if [ -d "$FONT_DIR" ] && ls "$FONT_DIR"/*.ttf >/dev/null 2>&1; then
+  echo -e "JetBrains Mono Nerd Font already appears to be installed in $FONT_DIR."
+  echo -e "Skipping font installation."
+  exit 0
+fi
+
 mkdir -p "$FONT_DIR"
 echo "Downloading JetBrains Mono Nerd Font..."
 curl -L -o /tmp/JetBrainsMono.zip "$FONT_URL"
