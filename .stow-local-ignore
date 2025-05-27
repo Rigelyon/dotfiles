@@ -22,5 +22,6 @@ _darcs
 ^/LICENSE.*
 ^/COPYING
 
+^/install/*
 stow.sh
 unstow.sh
