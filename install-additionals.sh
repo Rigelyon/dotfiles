@@ -1,9 +1,9 @@
 #!/bin/zsh
 # install.sh - Run all install scripts in the install directory with confirmation for each
 
-INSTALL_DIR="${1:-./install}"
+INSTALL_DIR="${1:-./install-additionals}"
 
-sudo chmod +x "$INSTALL_DIR"/*
+chmod +x "$INSTALL_DIR"/*
 
 if [ ! -d "$INSTALL_DIR" ]; then
   echo "Install directory not found: $INSTALL_DIR"

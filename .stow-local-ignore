@@ -23,5 +23,9 @@ _darcs
 ^/COPYING
 
 ^/install/*
+install.sh
+^/install-additionals/*
+install-additionals.sh
+after-fedora-installation.sh
 stow.sh
 unstow.sh
