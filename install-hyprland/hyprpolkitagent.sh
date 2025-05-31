@@ -1,7 +1,7 @@
 #!/bin/zsh
 # Install script for hyprpolkitagent (Hyprland's Polkit Agent)
 
-if command -v hyprpolkitagent >/dev/null 2>&1; then
+if rpm -q hyprpolkitagent >/dev/null 2>&1; then
   echo "hyprpolkitagent is already installed."
 else
   echo "Installing hyprpolkitagent..."

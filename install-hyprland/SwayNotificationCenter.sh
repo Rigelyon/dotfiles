@@ -1,7 +1,7 @@
 #!/bin/zsh
 # Install script for SwayNotificationCenter (a notification center for Sway and Hyprland)
 
-if command -v SwayNotificationCenter >/dev/null 2>&1; then
+if rpm -q SwayNotificationCenter >/dev/null 2>&1; then
   echo "SwayNotificationCenter is already installed."
 else
   echo "Installing SwayNotificationCenter..."
