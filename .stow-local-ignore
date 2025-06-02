@@ -25,7 +25,9 @@ _darcs
 ^/install/*
 install.sh
 ^/install-additionals/*
+^/install-hyprland/*
 install-additionals.sh
+install-hyprland.sh
 after-fedora-installation.sh
 stow.sh
 unstow.sh
