@@ -58,27 +58,46 @@ check_installed_packages() {
     PACKAGE_MAP=()
     read_dependencies
     
-    printf "%-20s %-20s %-10s\n" "Package" "Command" "Status"
-    printf "%-20s %-20s %-10s\n" "-------" "-------" "------"
+    printf "%-30s %-20s %-10s\n" "Package" "Command" "Status"
+    printf "%-30s %-20s %-10s\n" "-------" "-------" "------"
     
     add_report ""
+    
+    local -A all_packages
+    
+    for pkg in "${!PACKAGE_MAP[@]}"; do
+        all_packages["$pkg"]=1
+    done
     
     for pkg in */ ; do
         pkg=${pkg%/}
         if [[ "$pkg" == "setup.sh" || "$pkg" == "README.md" || "$pkg" == "LICENSE" || "$pkg" == ".git" || "$pkg" == "dependencies.conf" ]]; then
             continue
         fi
-        
+        all_packages["$pkg"]=1
+    done
+    
+    IFS=$'\n' sorted_packages=($(sort <<<"${!all_packages[*]}"))
+    unset IFS
+
+    for pkg in "${sorted_packages[@]}"; do
         cmd_check="${PACKAGE_MAP[$pkg]}"
-        if [ -z "$cmd_check" ]; then
+        
+        if [ -z "$cmd_check" ] && [ -z "${PACKAGE_MAP[$pkg]+exists}" ]; then
              cmd_check="$pkg"
         fi
 
+        if [ -z "$cmd_check" ] && [ "${PACKAGE_MAP[$pkg]+exists}" ]; then
+            printf "%-30s %-20s %-10s\n" "$pkg" "(none)" "UNKNOWN"
+            add_report "UNKNOWN: $pkg (no command specified)"
+            continue
+        fi
+
         if command_exists "$cmd_check"; then
-            printf "${GREEN}%-20s %-20s %-10s${NC}\n" "$pkg" "$cmd_check" "INSTALLED"
+            printf "${GREEN}%-30s %-20s %-10s${NC}\n" "$pkg" "$cmd_check" "INSTALLED"
             add_report "OK: $pkg ($cmd_check installed)"
         else
-            printf "${RED}%-20s %-20s %-10s${NC}\n" "$pkg" "$cmd_check" "MISSING"
+            printf "${RED}%-30s %-20s %-10s${NC}\n" "$pkg" "$cmd_check" "MISSING"
             add_report "MISSING: $pkg ($cmd_check not found)"
         fi
     done
