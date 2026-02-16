@@ -104,6 +104,37 @@ check_installed_packages() {
     echo ""
 }
 
+init_submodules() {
+    echo -e "${YELLOW}Checking git submodules...${NC}"
+    
+    if [ ! -f ".gitmodules" ]; then
+        echo -e "${BLUE}No submodules configured.${NC}"
+        return
+    fi
+    
+    # Check if git is available
+    if ! command_exists git; then
+        echo -e "${RED}Warning: git is not installed. Cannot initialize submodules.${NC}"
+        add_report "WARNING: git not found, skipping submodule initialization"
+        return
+    fi
+    
+    # Check if any submodule is not initialized (starts with -)
+    if git submodule status 2>/dev/null | grep -q '^-'; then
+        echo -e "${BLUE}Initializing submodules...${NC}"
+        if git submodule update --init --recursive; then
+            echo -e "${GREEN}Submodules initialized successfully${NC}"
+            add_report "INITIALIZED: Git submodules"
+        else
+            echo -e "${RED}Failed to initialize submodules${NC}"
+            add_report "ERROR: Failed to initialize git submodules"
+        fi
+    else
+        echo -e "${GREEN}All submodules already initialized${NC}"
+    fi
+    echo ""
+}
+
 resolve_path() {
     readlink -f "$1" 2>/dev/null || echo "$1"
 }
@@ -437,6 +468,7 @@ main_menu() {
     
     case $opt in
         1)
+            init_submodules
             check_installed_packages
             echo "Starting installation process..."
              for pkg in */ ; do
