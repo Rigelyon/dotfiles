@@ -22,10 +22,6 @@ _darcs
 ^/LICENSE.*
 ^/COPYING
 
-^/install/*
-install.sh
-^/install-additionals/*
-install-additionals.sh
-after-fedora-installation.sh
-stow.sh
-unstow.sh
+setup.sh
+dependencies.conf
+dotfiles_report_*.txt

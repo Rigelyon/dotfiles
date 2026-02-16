@@ -25,104 +25,62 @@ dotfiles/
 
 The files and folders inside each package should reflect their final positions in the system (e.g., `~/.bashrc`, `~/.config/nvim/init.vim`, etc.).
 
-## Usage with Scripts
+## Usage
 
-Script are used to simplified the usage of the command. Dynamically check if the dotfiles directory is in the home directory or not
+This repository uses a single interactive script, `setup.sh`, to manage configurations.
 
-### 1. Stow (Create Symlink)
+### Install / Restore
 
-Run:
+Run the setup script:
 
 ```bash
-bash stow.sh <package_name>
+./setup.sh
 ```
+
+You will be presented with a menu:
+
+1.  **Install/Update Configs**:
+    - Scans for available packages (folders).
+    - Checks if the corresponding program is installed on your system.
+    - If a conflict is found (target file already exists), you can choose to:
+        - **Backup**: Renames the existing file with a `.dotfiles-backup` suffix and links the new config.
+        - **Overwrite**: Deletes the existing file and links the new config.
+        - **Skip**: Skips this package.
+    - Uses GNU Stow to create symlinks.
+
+2.  **Restore Configs**:
+    - Checks for backups created by this script (`*.dotfiles-backup`).
+    - Gives you the option to restore them to their original location.
+
+3.  **Exit**.
+
+### Requirements
+
+- **GNU Stow**: Must be installed (`sudo dnf install stow` or equivalent).
+- **Bash**: The script is written in Bash.
+
+## Directory Structure
+
+Each subfolder in this repository represents a dotfiles _package_.
+Files and folders inside each package reflect their final positions in the system.
 
 Example:
-
-```bash
-bash stow.sh hypr
 ```
-
-This script will create a symlink from `~/Repository/dotfiles/hypr/.config/hypr` to `~/.config/hypr` for the Hyprland package.
-
-### 2. Unstow (Remove Symlink)
-
-Run:
-
-```bash
-bash unstow.sh <package_name>
+dotfiles/
+├── bash/
+│   └── .bashrc
+├── zsh/
+│   └── .zshrc
+├── nvim/
+│   └── .config/
+│       └── nvim/
+│           ├── init.vim
+│           └── lua/
+└── setup.sh
 ```
-
-Example:
-
-```bash
-bash unstow.sh hypr
-```
-
-This script will remove the symlink `~/.config/hypr` created by stow.
-
-## Usage Without Scripts
-
-If you prefer not to use the stow.sh and unstow.sh scripts, you can use the stow command directly from the terminal.
-
-### 1. If the dotfiles folder is in the home directory (`~/dotfiles`)
-
-Navigate to the dotfiles folder:
-
-```bash
-cd ~/dotfiles
-```
-
-To create symlinks:
-
-```bash
-stow bash
-stow hypr
-stow nvim
-```
-
-To remove symlinks:
-
-```bash
-stow -D bash
-stow -D hypr
-stow -D nvim
-```
-
-Explanation:
-- `-D` is used to remove symlinks previously created by stow.
-
-### 2. If the dotfiles folder is outside the home directory (e.g., `~/Repository/dotfiles`)
-
-Navigate to the dotfiles folder:
-
-```bash
-cd ~/Repository/dotfiles
-```
-
-To create symlinks:
-
-```bash
-stow -d . -t ~ bash # '.' is the dotfiles directory, 'bash' is the package name
-stow -d . -t ~ hypr
-stow -d . -t ~ nvim
-```
-
-To remove symlinks:
-
-```bash
-stow -D -d . -t ~ bash  # '.' is the dotfiles directory, 'bash' is the package name
-stow -D -d . -t ~ hypr
-stow -D -d . -t ~ nvim
-```
-
-Explanation:
-- `-D` is used to remove symlinks previously created by stow.
-- `-d` specifies the directory where the package is located.
-- `-t` specifies the target directory where the symlink will be created (`~` or home).
 
 ### Tips
-- Ensure there are no conflicting files in the target location (`~/.bashrc`, etc.), as symlinks will fail if such files are exist.
+- Ensure there are no conflicting files in the target location if you want a clean install, or use the **Backup** option in the script.
 
 ### Disclaimer
 
