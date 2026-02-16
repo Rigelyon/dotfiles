@@ -1,5 +1,7 @@
 # Dotfiles with GNU Stow
 
+These dotfiles are designed for the custom Bazzite image: [bazzite-hyprland](https://github.com/Rigelyon/bazzite-hyprland).
+
 This repository is used to manage and back up configuration files (dotfiles) using [GNU Stow](https://www.gnu.org/software/stow/). Stow creates symlinks from the configuration files in the repository to the locations used by the system/application, such as `~/.bashrc`, `~/.gitconfig`, and others.
 
 ## Directory Structure
@@ -59,25 +61,38 @@ You will be presented with a menu:
 - **GNU Stow**: Must be installed (`sudo dnf install stow` or equivalent).
 - **Bash**: The script is written in Bash.
 
-## Directory Structure
+## Dependencies
 
-Each subfolder in this repository represents a dotfiles _package_.
-Files and folders inside each package reflect their final positions in the system.
+These dotfiles only checks these following packages. For the installation, use [bazzite-hyprland](https://github.com/Rigelyon/bazzite-hyprland).
 
-Example:
-```
-dotfiles/
-├── bash/
-│   └── .bashrc
-├── zsh/
-│   └── .zshrc
-├── nvim/
-│   └── .config/
-│       └── nvim/
-│           ├── init.vim
-│           └── lua/
-└── setup.sh
-```
+Package to check:
+
+- **bash**
+- **zsh**
+- **nvim** (Neovim)
+- **kitty**
+- **hypr** (Hyprland)
+- **git**
+- **tmux**
+- **rofi**
+- **waybar**
+- **swaync**
+- **wlogout**
+- **micro**
+- **btop**
+- **fastfetch**
+- **bat**
+- **lsd**
+- **yazi**
+- **starship**
+- **fzf**
+- **ripgrep**
+- **fd**
+- **zoxide**
+- **lazygit**
+- **spicetify**
+- **mpv**
+- **vlc**
 
 ### Tips
 - Ensure there are no conflicting files in the target location if you want a clean install, or use the **Backup** option in the script.
