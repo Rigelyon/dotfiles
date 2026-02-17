@@ -452,6 +452,365 @@ restore_config() {
     fi
 }
 
+add_new_config() {
+    echo -e "${BLUE}=== Add New Config Package ===${NC}"
+    echo ""
+    
+    while true; do
+        read -p "Enter package name: " pkg_name
+        
+        if [ -z "$pkg_name" ]; then
+            echo -e "${RED}Error: Package name cannot be empty${NC}"
+            continue
+        fi
+        
+        if [[ ! "$pkg_name" =~ ^[a-zA-Z0-9_-]+$ ]]; then
+            echo -e "${RED}Error: Package name can only contain letters, numbers, hyphens, and underscores${NC}"
+            continue
+        fi
+        
+        
+        if [ -d "$DOTFILES_DIR/$pkg_name" ]; then
+            echo -e "${YELLOW}Package '$pkg_name' already exists in the repository${NC}"
+            echo ""
+            echo "What would you like to do?"
+            echo "1) Add to dependencies.conf and README.md only (symlink existing package)"
+            echo "2) Try a different package name"
+            echo "3) Cancel"
+            read -p "Select (1-3): " choice
+            
+            case $choice in
+                1)
+                    read -p "Enter command to check installation (default: $pkg_name): " cmd_check
+                    if [ -z "$cmd_check" ]; then
+                        cmd_check="$pkg_name"
+                    fi
+                    
+                    local deps_file="$DOTFILES_DIR/dependencies.conf"
+                    local new_entry="$pkg_name:$cmd_check"
+                    
+                    if grep -q "^$pkg_name:" "$deps_file" 2>/dev/null; then
+                        echo -e "${YELLOW}Package already exists in dependencies.conf${NC}"
+                    else
+                        {
+                            grep -v "^#" "$deps_file" | grep -v "^$" || true
+                            echo "$new_entry"
+                        } | sort -u > "$deps_file.tmp"
+                        
+                        if grep -q "^#" "$deps_file" 2>/dev/null; then
+                            grep "^#" "$deps_file" > "$deps_file.new"
+                            cat "$deps_file.tmp" >> "$deps_file.new"
+                        else
+                            mv "$deps_file.tmp" "$deps_file.new"
+                        fi
+                        
+                        mv "$deps_file.new" "$deps_file"
+                        rm -f "$deps_file.tmp"
+                        echo -e "${GREEN}✓ Updated dependencies.conf${NC}"
+                    fi
+                    
+                    local readme_file="$DOTFILES_DIR/README.md"
+                    local new_readme_entry="- **$pkg_name**"
+                    
+                    if [ "$cmd_check" != "$pkg_name" ]; then
+                        new_readme_entry="- **$pkg_name** ($cmd_check)"
+                    fi
+                    
+                    if grep -q "^- \*\*$pkg_name\*\*" "$readme_file" 2>/dev/null; then
+                        echo -e "${YELLOW}Package already exists in README.md${NC}"
+                    else
+                        local pkg_check_line=$(grep -n "Package to check:" "$readme_file" | cut -d: -f1)
+                        
+                        if [ -n "$pkg_check_line" ]; then
+                            local start_line=$((pkg_check_line + 2))
+                            local end_line=$(tail -n +$start_line "$readme_file" | grep -n "^$\|^#" | head -1 | cut -d: -f1)
+                            
+                            if [ -n "$end_line" ]; then
+                                end_line=$((start_line + end_line - 2))
+                            else
+                                end_line=$(wc -l < "$readme_file")
+                            fi
+                            
+                            {
+                                sed -n "${start_line},${end_line}p" "$readme_file"
+                                echo "$new_readme_entry"
+                            } | sort -u > "$readme_file.tmp"
+                            
+                            {
+                                head -n $((start_line - 1)) "$readme_file"
+                                cat "$readme_file.tmp"
+                                tail -n +$((end_line + 1)) "$readme_file"
+                            } > "$readme_file.new"
+                            
+                            mv "$readme_file.new" "$readme_file"
+                            rm -f "$readme_file.tmp"
+                            
+                            echo -e "${GREEN}✓ Updated README.md${NC}"
+                        fi
+                    fi
+                    
+                    echo ""
+                    echo -e "${GREEN}Package '$pkg_name' registered successfully!${NC}"
+                    add_report "REGISTERED EXISTING PACKAGE: $pkg_name (command: $cmd_check)"
+                    return
+                    ;;
+                2)
+                    continue
+                    ;;
+                3)
+                    return
+                    ;;
+                *)
+                    echo -e "${RED}Invalid choice${NC}"
+                    return
+                    ;;
+            esac
+        fi
+        
+        break
+    done
+    
+    read -p "Enter command to check installation (default: $pkg_name): " cmd_check
+    if [ -z "$cmd_check" ]; then
+        cmd_check="$pkg_name"
+    fi
+    
+    while true; do
+        echo ""
+        echo -e "${YELLOW}Examples:${NC}"
+        echo "  .config/yazi       → Creates: $pkg_name/.config/yazi/"
+        echo "  .bashrc            → Creates: $pkg_name/.bashrc"
+        echo "  .config/tmux/tmux.conf → Creates: $pkg_name/.config/tmux/tmux.conf"
+        echo ""
+        read -p "Enter path relative to \$HOME: " rel_path
+        
+        if [ -z "$rel_path" ]; then
+            echo -e "${RED}Error: Path cannot be empty${NC}"
+            continue
+        fi
+        
+        if [[ "$rel_path" =~ ^[/~] ]]; then
+            echo -e "${RED}Error: Path should be relative (don't start with / or ~)${NC}"
+            continue
+        fi
+        
+        local home_path="$HOME/$rel_path"
+        if [ -e "$home_path" ] || [ -L "$home_path" ]; then
+            echo ""
+            echo -e "${YELLOW}File/directory already exists: $home_path${NC}"
+            echo ""
+            echo "What would you like to do?"
+            echo "1) Import existing file/directory to repository"
+            echo "2) Try a different path"
+            echo "3) Cancel"
+            read -p "Select (1-3): " choice
+            
+            case $choice in
+                1)
+                    echo -e "${BLUE}Importing existing file/directory...${NC}"
+                    
+                    local pkg_path="$DOTFILES_DIR/$pkg_name/$rel_path"
+                    local parent_dir=$(dirname "$pkg_path")
+                    mkdir -p "$parent_dir"
+                    
+                    if [ -d "$home_path" ] && [ ! -L "$home_path" ]; then
+                        cp -r "$home_path" "$parent_dir/"
+                        echo -e "${GREEN}✓ Imported directory: $rel_path${NC}"
+                    else
+                        cp "$home_path" "$pkg_path"
+                        echo -e "${GREEN}✓ Imported file: $rel_path${NC}"
+                    fi
+                    
+                    local deps_file="$DOTFILES_DIR/dependencies.conf"
+                    local new_entry="$pkg_name:$cmd_check"
+                    
+                    {
+                        grep -v "^#" "$deps_file" | grep -v "^$" || true
+                        echo "$new_entry"
+                    } | sort -u > "$deps_file.tmp"
+                    
+                    if grep -q "^#" "$deps_file" 2>/dev/null; then
+                        grep "^#" "$deps_file" > "$deps_file.new"
+                        cat "$deps_file.tmp" >> "$deps_file.new"
+                    else
+                        mv "$deps_file.tmp" "$deps_file.new"
+                    fi
+                    
+                    mv "$deps_file.new" "$deps_file"
+                    rm -f "$deps_file.tmp"
+                    
+                    echo -e "${GREEN}✓ Updated dependencies.conf${NC}"
+                    
+                    local readme_file="$DOTFILES_DIR/README.md"
+                    local new_readme_entry="- **$pkg_name**"
+                    
+                    if [ "$cmd_check" != "$pkg_name" ]; then
+                        new_readme_entry="- **$cmd_check** ($pkg_name)"
+                    fi
+                    
+                    local pkg_check_line=$(grep -n "Package to check:" "$readme_file" | cut -d: -f1)
+                    
+                    if [ -n "$pkg_check_line" ]; then
+                        local start_line=$((pkg_check_line + 2))
+                        local end_line=$(tail -n +$start_line "$readme_file" | grep -n "^$\|^#" | head -1 | cut -d: -f1)
+                        
+                        if [ -n "$end_line" ]; then
+                            end_line=$((start_line + end_line - 2))
+                        else
+                            end_line=$(wc -l < "$readme_file")
+                        fi
+                        
+                        {
+                            sed -n "${start_line},${end_line}p" "$readme_file"
+                            echo "$new_readme_entry"
+                        } | sort -u > "$readme_file.tmp"
+                        
+                        {
+                            head -n $((start_line - 1)) "$readme_file"
+                            cat "$readme_file.tmp"
+                            tail -n +$((end_line + 1)) "$readme_file"
+                        } > "$readme_file.new"
+                        
+                        mv "$readme_file.new" "$readme_file"
+                        rm -f "$readme_file.tmp"
+                        
+                        echo -e "${GREEN}✓ Updated README.md${NC}"
+                    fi
+                    
+                    echo ""
+                    echo -e "${GREEN}Package '$pkg_name' imported successfully!${NC}"
+                    echo ""
+                    echo -e "${BLUE}Next steps:${NC}"
+                    echo "1. Review imported files at: $DOTFILES_DIR/$pkg_name/"
+                    echo "2. Run './setup.sh' and select 'Install/Update Configs' to create symlinks"
+                    echo "   (The original file will be backed up)"
+                    echo ""
+                    
+                    add_report "IMPORTED PACKAGE: $pkg_name (command: $cmd_check, path: $rel_path)"
+                    return
+                    ;;
+                2)
+                    continue
+                    ;;
+                3)
+                    return
+                    ;;
+                *)
+                    echo -e "${RED}Invalid choice${NC}"
+                    return
+                    ;;
+            esac
+        fi
+        
+        break
+    done
+    
+    local pkg_path="$DOTFILES_DIR/$pkg_name/$rel_path"
+    local is_file=0
+    
+    if [[ "$rel_path" =~ \.[a-zA-Z0-9]+$ ]] || [[ ! "$rel_path" =~ /$ ]]; then
+        if [[ "$rel_path" =~ \. ]] || [[ "$rel_path" =~ rc$ ]] || [[ "$rel_path" =~ conf$ ]]; then
+            is_file=1
+        fi
+    fi
+    
+    echo ""
+    echo -e "${YELLOW}Creating package structure:${NC}"
+    echo "  $pkg_name/$rel_path"
+    echo ""
+    
+    if [ "$is_file" -eq 1 ]; then
+        local parent_dir=$(dirname "$pkg_path")
+        mkdir -p "$parent_dir"
+        
+        cat > "$pkg_path" << EOF
+# Configuration file for $pkg_name
+# Add your configuration here
+
+EOF
+        echo -e "${GREEN}✓ Created directory: $pkg_name/$(dirname "$rel_path")/${NC}"
+        echo -e "${GREEN}✓ Created placeholder file: $pkg_name/$rel_path${NC}"
+    else
+        mkdir -p "$pkg_path"
+        echo -e "${GREEN}✓ Created directory: $pkg_name/$rel_path${NC}"
+    fi
+    
+    local deps_file="$DOTFILES_DIR/dependencies.conf"
+    local new_entry="$pkg_name:$cmd_check"
+    
+    {
+        grep -v "^#" "$deps_file" | grep -v "^$" || true
+        echo "$new_entry"
+    } | sort -u > "$deps_file.tmp"
+    
+    if grep -q "^#" "$deps_file" 2>/dev/null; then
+        grep "^#" "$deps_file" > "$deps_file.new"
+        cat "$deps_file.tmp" >> "$deps_file.new"
+    else
+        mv "$deps_file.tmp" "$deps_file.new"
+    fi
+    
+    mv "$deps_file.new" "$deps_file"
+    rm -f "$deps_file.tmp"
+    
+    echo -e "${GREEN}✓ Updated dependencies.conf${NC}"
+    
+    local readme_file="$DOTFILES_DIR/README.md"
+    local new_readme_entry="- **$pkg_name**"
+    
+    if [ "$cmd_check" != "$pkg_name" ]; then
+        new_readme_entry="- **$pkg_name** ($cmd_check)"
+    fi
+    
+    local pkg_check_line=$(grep -n "Package to check:" "$readme_file" | cut -d: -f1)
+    
+    if [ -n "$pkg_check_line" ]; then
+        local start_line=$((pkg_check_line + 2))
+        
+        local end_line=$(tail -n +$start_line "$readme_file" | grep -n "^$\|^#" | head -1 | cut -d: -f1)
+        
+        if [ -n "$end_line" ]; then
+            end_line=$((start_line + end_line - 2))
+        else
+            end_line=$(wc -l < "$readme_file")
+        fi
+        
+        {
+            sed -n "${start_line},${end_line}p" "$readme_file"
+            echo "$new_readme_entry"
+        } | sort -u > "$readme_file.tmp"
+        
+        {
+            head -n $((start_line - 1)) "$readme_file"
+            cat "$readme_file.tmp"
+            tail -n +$((end_line + 1)) "$readme_file"
+        } > "$readme_file.new"
+        
+        mv "$readme_file.new" "$readme_file"
+        rm -f "$readme_file.tmp"
+        
+        echo -e "${GREEN}✓ Updated README.md${NC}"
+    else
+        echo -e "${YELLOW}⚠ Could not find 'Package to check:' section in README.md${NC}"
+        echo -e "${YELLOW}  Please manually add: $new_readme_entry${NC}"
+    fi
+    
+    echo ""
+    echo -e "${GREEN}Package '$pkg_name' added successfully!${NC}"
+    echo ""
+    echo -e "${BLUE}Next steps:${NC}"
+    
+    if [ "$is_file" -eq 1 ]; then
+        echo "1. Edit your config file at: $pkg_path"
+    else
+        echo "1. Add your config files to: $pkg_path"
+    fi
+    
+    echo "2. Run './setup.sh' and select 'Install/Update Configs' to deploy"
+    echo ""
+    
+    add_report "ADDED NEW PACKAGE: $pkg_name (command: $cmd_check, path: $rel_path)"
+}
 
 main_menu() {
     print_header
@@ -463,7 +822,8 @@ main_menu() {
 
     echo "1) Install/Update Configs"
     echo "2) Restore Configs (Restore Backups)"
-    echo "3) Exit"
+    echo "3) Add New Config"
+    echo "4) Exit"
     read -p "Select option: " opt
     
     case $opt in
@@ -497,6 +857,9 @@ main_menu() {
             done
             ;;
         3)
+            add_new_config
+            ;;
+        4)
             exit 0
             ;;
         *)
