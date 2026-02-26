@@ -42,8 +42,8 @@ Run the setup script:
 You will be presented with a menu:
 
 1.  **Install/Update Configs**:
-    - Scans for available packages (folders).
-    - Checks if the corresponding program is installed on your system.
+    - Checks if the corresponding program is installed on your system, separated into packages with configs and dependencies only.
+    - Checks config link status (LINKED / PARTIAL / NOT LINKED).
     - If a conflict is found (target file already exists), you can choose to:
         - **Backup**: Renames the existing file with a `.dotfiles-backup` suffix and links the new config.
         - **Overwrite**: Deletes the existing file and links the new config.
@@ -54,7 +54,20 @@ You will be presented with a menu:
     - Checks for backups created by this script (`*.dotfiles-backup`).
     - Gives you the option to restore them to their original location.
 
-3.  **Exit**.
+3.  **Add New Config**:
+    - Interactively add a new configuration package to the repository.
+    - Prompts for package name, installation check command, and file path relative to `$HOME`.
+    - Automatically creates the correct directory structure.
+    - Updates `dependencies.conf` and `README.md` automatically.
+    - Example: Adding `yazi` config at `.config/yazi` creates `yazi/.config/yazi/`
+
+4.  **Delete Config**:
+    - Lists all config packages with their link status.
+    - Detects orphaned entries in `dependencies.conf` that have no matching directory.
+    - **Unlink only**: Removes symlinks (verifies if actually linked first).
+    - **Full remove**: Unlinks, deletes directory, and cleans up `dependencies.conf` and `README.md`.
+
+5.  **Exit**.
 
 ### Requirements
 
@@ -68,31 +81,29 @@ These dotfiles only checks these following packages. For the installation, use [
 Package to check:
 
 - **bash**
-- **zsh**
-- **nvim** (Neovim)
-- **kitty**
-- **hypr** (Hyprland)
-- **git**
-- **tmux**
-- **rofi**
-- **waybar**
-- **swaync**
-- **wlogout**
-- **micro**
+- **bat**
 - **btop**
 - **fastfetch**
-- **bat**
-- **lsd**
-- **yazi**
-- **starship**
-- **fzf**
-- **ripgrep**
 - **fd**
-- **zoxide**
+- **fzf**
+- **git**
+- **hypr** (Hyprland)
+- **kitty**
 - **lazygit**
-- **spicetify**
+- **lsd**
+- **micro**
 - **mpv**
+- **nvim** (Neovim)
+- **ripgrep**
+- **rofi**
+- **starship**
+- **swaync**
 - **vlc**
+- **waybar**
+- **wlogout**
+- **yazi**
+- **zoxide**
+- **zsh**
 
 ### Tips
 - Ensure there are no conflicting files in the target location if you want a clean install, or use the **Backup** option in the script.

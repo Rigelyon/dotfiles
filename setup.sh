@@ -58,9 +58,6 @@ check_installed_packages() {
     PACKAGE_MAP=()
     read_dependencies
     
-    printf "%-30s %-20s %-10s\n" "Package" "Command" "Status"
-    printf "%-30s %-20s %-10s\n" "-------" "-------" "------"
-    
     add_report ""
     
     local -A all_packages
@@ -80,7 +77,23 @@ check_installed_packages() {
     IFS=$'\n' sorted_packages=($(sort <<<"${!all_packages[*]}"))
     unset IFS
 
+    local config_packages=()
+    local dep_only_packages=()
+
     for pkg in "${sorted_packages[@]}"; do
+        if [ -d "$DOTFILES_DIR/$pkg" ]; then
+            config_packages+=("$pkg")
+        else
+            dep_only_packages+=("$pkg")
+        fi
+    done
+
+    # Packages with configs
+    echo -e "${BLUE}── Packages with Configs ──${NC}"
+    printf "%-30s %-20s %-10s\n" "Package" "Command" "Status"
+    printf "%-30s %-20s %-10s\n" "-------" "-------" "------"
+
+    for pkg in "${config_packages[@]}"; do
         cmd_check="${PACKAGE_MAP[$pkg]}"
         
         if [ -z "$cmd_check" ] && [ -z "${PACKAGE_MAP[$pkg]+exists}" ]; then
@@ -102,6 +115,95 @@ check_installed_packages() {
         fi
     done
     echo ""
+
+    # Dependencies only (no config directory)
+    if [ ${#dep_only_packages[@]} -gt 0 ]; then
+        echo -e "${BLUE}── Dependencies Only (no config) ──${NC}"
+        printf "%-30s %-20s %-10s\n" "Package" "Command" "Status"
+        printf "%-30s %-20s %-10s\n" "-------" "-------" "------"
+
+        for pkg in "${dep_only_packages[@]}"; do
+            cmd_check="${PACKAGE_MAP[$pkg]}"
+            
+            if [ -z "$cmd_check" ] && [ -z "${PACKAGE_MAP[$pkg]+exists}" ]; then
+                 cmd_check="$pkg"
+            fi
+
+            if [ -z "$cmd_check" ] && [ "${PACKAGE_MAP[$pkg]+exists}" ]; then
+                printf "%-30s %-20s %-10s\n" "$pkg" "(none)" "UNKNOWN"
+                add_report "UNKNOWN: $pkg (no command specified)"
+                continue
+            fi
+
+            if command_exists "$cmd_check"; then
+                printf "${GREEN}%-30s %-20s %-10s${NC}\n" "$pkg" "$cmd_check" "INSTALLED"
+                add_report "OK: $pkg ($cmd_check installed)"
+            else
+                printf "${RED}%-30s %-20s %-10s${NC}\n" "$pkg" "$cmd_check" "MISSING"
+                add_report "MISSING: $pkg ($cmd_check not found)"
+            fi
+        done
+        echo ""
+    fi
+}
+
+check_linked_configs() {
+    echo -e "${YELLOW}Checking linked configs...${NC}"
+
+    printf "%-30s %-15s %-15s %-10s\n" "Package" "Linked" "Total" "Status"
+    printf "%-30s %-15s %-15s %-10s\n" "-------" "------" "-----" "------"
+
+    add_report ""
+
+    for pkg in */ ; do
+        pkg=${pkg%/}
+        if [[ "$pkg" == "setup.sh" || "$pkg" == "README.md" || "$pkg" == "LICENSE" || "$pkg" == ".git" ]]; then
+            continue
+        fi
+
+        local pkg_dir="$DOTFILES_DIR/$pkg"
+        local linked=0
+        local total=0
+
+        while IFS= read -r file; do
+            total=$((total+1))
+            local rel_path="${file#$pkg_dir/}"
+            local target_path="$HOME/$rel_path"
+
+            local real_target
+            real_target=$(resolve_path "$target_path")
+            local real_source
+            real_source=$(resolve_path "$file")
+
+            if [ "$real_target" == "$real_source" ]; then
+                linked=$((linked+1))
+            fi
+        done < <(find "$pkg_dir" -type f)
+
+        local status
+        if [ "$total" -eq 0 ]; then
+            status="EMPTY"
+        elif [ "$linked" -eq "$total" ]; then
+            status="LINKED"
+        elif [ "$linked" -gt 0 ]; then
+            status="PARTIAL"
+        else
+            status="NOT LINKED"
+        fi
+
+        local color="$NC"
+        if [ "$status" == "LINKED" ]; then
+            color="$GREEN"
+        elif [ "$status" == "PARTIAL" ]; then
+            color="$YELLOW"
+        elif [ "$status" == "NOT LINKED" ]; then
+            color="$RED"
+        fi
+
+        printf "${color}%-30s %-15s %-15s %-10s${NC}\n" "$pkg" "$linked" "$total" "$status"
+        add_report "LINK: $pkg ($linked/$total - $status)"
+    done
+    echo ""
 }
 
 init_submodules() {
@@ -112,14 +214,12 @@ init_submodules() {
         return
     fi
     
-    # Check if git is available
     if ! command_exists git; then
         echo -e "${RED}Warning: git is not installed. Cannot initialize submodules.${NC}"
         add_report "WARNING: git not found, skipping submodule initialization"
         return
     fi
     
-    # Check if any submodule is not initialized (starts with -)
     if git submodule status 2>/dev/null | grep -q '^-'; then
         echo -e "${BLUE}Initializing submodules...${NC}"
         if git submodule update --init --recursive; then
@@ -812,6 +912,248 @@ EOF
     add_report "ADDED NEW PACKAGE: $pkg_name (command: $cmd_check, path: $rel_path)"
 }
 
+delete_config() {
+  while true; do
+    echo -e "${BLUE}=== Delete Config Package ===${NC}"
+    echo ""
+
+    local packages=()
+    for pkg in */ ; do
+        pkg=${pkg%/}
+        if [[ "$pkg" == "setup.sh" || "$pkg" == "README.md" || "$pkg" == "LICENSE" || "$pkg" == ".git" ]]; then
+            continue
+        fi
+        packages+=("$pkg")
+    done
+
+    # Also detect orphaned entries in dependencies.conf (no matching directory)
+    local orphans=()
+    local deps_file="$DOTFILES_DIR/dependencies.conf"
+    if [ -f "$deps_file" ]; then
+        while IFS=':' read -r pkg cmd; do
+            [[ "$pkg" =~ ^#.*$ ]] && continue
+            [[ -z "$pkg" ]] && continue
+            pkg=$(echo "$pkg" | xargs)
+            if [ ! -d "$DOTFILES_DIR/$pkg" ]; then
+                orphans+=("$pkg")
+            fi
+        done < "$deps_file"
+    fi
+
+    if [ ${#packages[@]} -eq 0 ] && [ ${#orphans[@]} -eq 0 ]; then
+        echo -e "${YELLOW}No config packages found.${NC}"
+        return
+    fi
+
+    echo "Available packages:"
+    local all_items=()
+
+    for i in "${!packages[@]}"; do
+        local pkg="${packages[$i]}"
+        local pkg_dir="$DOTFILES_DIR/$pkg"
+        local linked=0
+        local total=0
+
+        while IFS= read -r file; do
+            total=$((total+1))
+            local rel_path="${file#$pkg_dir/}"
+            local target_path="$HOME/$rel_path"
+            local real_target
+            real_target=$(resolve_path "$target_path")
+            local real_source
+            real_source=$(resolve_path "$file")
+            if [ "$real_target" == "$real_source" ]; then
+                linked=$((linked+1))
+            fi
+        done < <(find "$pkg_dir" -type f)
+
+        local status
+        if [ "$total" -eq 0 ]; then
+            status="EMPTY"
+        elif [ "$linked" -eq "$total" ]; then
+            status="LINKED"
+        elif [ "$linked" -gt 0 ]; then
+            status="PARTIAL"
+        else
+            status="NOT LINKED"
+        fi
+
+        local color="$NC"
+        if [ "$status" == "LINKED" ]; then color="$GREEN"
+        elif [ "$status" == "PARTIAL" ]; then color="$YELLOW"
+        elif [ "$status" == "NOT LINKED" ]; then color="$RED"
+        fi
+
+        all_items+=("dir:$pkg")
+        printf "  %2d) ${color}%-25s [%s]${NC}\n" "${#all_items[@]}" "$pkg" "$status"
+    done
+
+    for orphan in "${orphans[@]}"; do
+        all_items+=("orphan:$orphan")
+        printf "  %2d) ${YELLOW}%-25s [ORPHAN]${NC}\n" "${#all_items[@]}" "$orphan"
+    done
+
+    echo ""
+    read -p "Select package number (0 to cancel): " pkg_num
+
+    if [[ ! "$pkg_num" =~ ^[0-9]+$ ]] || [ "$pkg_num" -eq 0 ]; then
+        echo "Cancelled."
+        return
+    fi
+
+    local idx=$((pkg_num-1))
+    if [ "$idx" -ge "${#all_items[@]}" ]; then
+        echo -e "${RED}Invalid selection.${NC}"
+        return
+    fi
+
+    local selected_item="${all_items[$idx]}"
+    local item_type="${selected_item%%:*}"
+    local selected_pkg="${selected_item#*:}"
+
+    # Handle orphaned dependency entries
+    if [ "$item_type" == "orphan" ]; then
+        echo ""
+        echo -e "Selected orphan entry: ${YELLOW}$selected_pkg${NC}"
+        echo -e "${YELLOW}This package exists in dependencies.conf/README.md but has no directory.${NC}"
+        read -p "Remove orphaned entries? (y/N): " confirm
+        if [[ "$confirm" =~ ^[Yy]$ ]]; then
+            local deps_file="$DOTFILES_DIR/dependencies.conf"
+            if grep -q "^$selected_pkg:" "$deps_file" 2>/dev/null; then
+                sed -i "/^$selected_pkg:/d" "$deps_file"
+                echo -e "${GREEN}✓ Removed from dependencies.conf${NC}"
+            fi
+
+            local readme_file="$DOTFILES_DIR/README.md"
+            if grep -q "^- \*\*$selected_pkg\*\*" "$readme_file" 2>/dev/null; then
+                sed -i "/^- \*\*$selected_pkg\*\*/d" "$readme_file"
+                echo -e "${GREEN}✓ Removed from README.md${NC}"
+            fi
+
+            echo -e "${GREEN}Orphaned entry '$selected_pkg' cleaned up.${NC}"
+            add_report "CLEANED ORPHAN: $selected_pkg"
+        else
+            echo "Cancelled."
+        fi
+    else
+        # Handle normal directory packages
+        local selected_pkg_dir="$DOTFILES_DIR/$selected_pkg"
+
+    echo ""
+    echo -e "Selected: ${BLUE}$selected_pkg${NC}"
+    echo ""
+    echo "1) Unlink only (unstow - remove symlinks)"
+    echo "2) Full remove (unstow + delete from repository)"
+    echo "3) Cancel"
+    read -p "Select action (1-3): " action_choice
+
+    case $action_choice in
+        1)
+            # Check if actually linked before unlinking
+            local linked=0
+            local total=0
+
+            while IFS= read -r file; do
+                total=$((total+1))
+                local rel_path="${file#$selected_pkg_dir/}"
+                local target_path="$HOME/$rel_path"
+                local real_target
+                real_target=$(resolve_path "$target_path")
+                local real_source
+                real_source=$(resolve_path "$file")
+                if [ "$real_target" == "$real_source" ]; then
+                    linked=$((linked+1))
+                fi
+            done < <(find "$selected_pkg_dir" -type f)
+
+            if [ "$linked" -eq 0 ]; then
+                echo ""
+                echo -e "${YELLOW}Config '$selected_pkg' is not linked. Nothing to unlink.${NC}"
+                add_report "SKIP UNLINK: $selected_pkg (not linked)"
+                return
+            fi
+
+            echo ""
+            echo -e "${YELLOW}Unlinking $selected_pkg ($linked/$total files linked)...${NC}"
+            if stow -t "$HOME" -D -v "$selected_pkg"; then
+                echo -e "${GREEN}Successfully unlinked $selected_pkg${NC}"
+                add_report "UNLINKED: $selected_pkg ($linked files)"
+            else
+                echo -e "${RED}Failed to unlink $selected_pkg${NC}"
+                add_report "ERROR UNLINK: $selected_pkg"
+            fi
+            ;;
+        2)
+            echo ""
+            echo -e "${RED}WARNING: This will permanently delete '$selected_pkg' from the repository!${NC}"
+            read -p "Are you sure? (y/N): " confirm
+
+            if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+                echo "Cancelled."
+                return
+            fi
+
+            # Unstow first if linked
+            local linked=0
+            while IFS= read -r file; do
+                local rel_path="${file#$selected_pkg_dir/}"
+                local target_path="$HOME/$rel_path"
+                local real_target
+                real_target=$(resolve_path "$target_path")
+                local real_source
+                real_source=$(resolve_path "$file")
+                if [ "$real_target" == "$real_source" ]; then
+                    linked=$((linked+1))
+                fi
+            done < <(find "$selected_pkg_dir" -type f)
+
+            if [ "$linked" -gt 0 ]; then
+                echo -e "${YELLOW}Unlinking $selected_pkg first...${NC}"
+                stow -t "$HOME" -D -v "$selected_pkg"
+                add_report "UNLINKED: $selected_pkg"
+            fi
+
+            # Remove package directory
+            echo -e "${YELLOW}Removing package directory...${NC}"
+            rm -rf "$selected_pkg_dir"
+            echo -e "${GREEN}\u2713 Removed directory: $selected_pkg${NC}"
+
+            # Remove from dependencies.conf
+            local deps_file="$DOTFILES_DIR/dependencies.conf"
+            if grep -q "^$selected_pkg:" "$deps_file" 2>/dev/null; then
+                sed -i "/^$selected_pkg:/d" "$deps_file"
+                echo -e "${GREEN}\u2713 Removed from dependencies.conf${NC}"
+            fi
+
+            # Remove from README.md
+            local readme_file="$DOTFILES_DIR/README.md"
+            if grep -q "^- \\*\\*$selected_pkg\\*\\*" "$readme_file" 2>/dev/null; then
+                sed -i "/^- \\*\\*$selected_pkg\\*\\*/d" "$readme_file"
+                echo -e "${GREEN}\u2713 Removed from README.md${NC}"
+            fi
+
+            echo ""
+            echo -e "${GREEN}Package '$selected_pkg' fully removed.${NC}"
+            add_report "FULL REMOVE: $selected_pkg"
+            ;;
+        3)
+            echo "Cancelled."
+            return
+            ;;
+        *)
+            echo -e "${RED}Invalid choice${NC}"
+            ;;
+    esac
+    fi
+
+    echo ""
+    read -p "Delete another config? (y/N): " again
+    if [[ ! "$again" =~ ^[Yy]$ ]]; then
+        break
+    fi
+  done
+}
+
 main_menu() {
     print_header
     
@@ -823,13 +1165,15 @@ main_menu() {
     echo "1) Install/Update Configs"
     echo "2) Restore Configs (Restore Backups)"
     echo "3) Add New Config"
-    echo "4) Exit"
+    echo "4) Delete Config"
+    echo "5) Exit"
     read -p "Select option: " opt
     
     case $opt in
         1)
             init_submodules
             check_installed_packages
+            check_linked_configs
             echo "Starting installation process..."
              for pkg in */ ; do
                 pkg=${pkg%/}
@@ -860,6 +1204,9 @@ main_menu() {
             add_new_config
             ;;
         4)
+            delete_config
+            ;;
+        5)
             exit 0
             ;;
         *)
