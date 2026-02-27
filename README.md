@@ -87,6 +87,7 @@ Package to check:
 - **fd**
 - **fzf**
 - **git**
+- **hypr**
 - **hypr** (Hyprland)
 - **kitty**
 - **lazygit**
