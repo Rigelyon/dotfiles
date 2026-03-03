@@ -1,0 +1,159 @@
+/* * Waybar Style - Catppuccin Mocha
+ * Dynamic Layout: Floating Islands (Empty) & Solid Bar (Active Window)
+ */
+
+@import "themes/catppuccin-mocha.css";
+
+/* --- Konfigurasi Global --- */
+* {
+    font-family: "JetBrainsMono Nerd Font";
+    font-weight: bold;
+    font-size: 99%;
+    min-height: 0;
+    transition: none;
+    /* Mencegah elemen bergeser/animasi saat berpindah state */
+    font-feature-settings: '"zero", "ss01", "ss02", "ss03", "ss04", "ss05", "cv31"';
+}
+
+/* --- Container Utama (Waybar) --- */
+window#waybar {
+    background-color: @base;
+    /* border: 2px solid @surface0; */
+    border-radius: 8px;
+    opacity: 0.9;
+}
+
+/* Saat bar tersembunyi */
+window#waybar.hidden {
+    opacity: 0.2;
+}
+
+/* LOGIKA 1: Saat TIDAK ADA Window (Mode Floating Islands) */
+window#waybar.empty {
+    background-color: transparent;
+    border: none;
+    box-shadow: none;
+}
+
+/* Beri border dan background pada setiap module hanya saat bar kosong */
+window#waybar.empty #custom-menu,
+window#waybar.empty #workspaces,
+window#waybar.empty #clock,
+window#waybar.empty #mpris,
+window#waybar.empty #icons,
+window#waybar.empty #tray,
+window#waybar.empty #custom-notification {
+    background-color: @base;
+    /* border: 2px solid @surface0; */
+    border-radius: 6px;
+}
+
+/* LOGIKA 2: Saat ADA Window Aktif (Mode Solid Bar) */
+/* Hilangkan background per-module agar menyatu dengan background utama bar */
+window#waybar:not(.empty) #custom-menu,
+window#waybar:not(.empty) #window,
+window#waybar:not(.empty) #clock,
+window#waybar:not(.empty) #mpris,
+window#waybar:not(.empty) #icons,
+window#waybar:not(.empty) #custom-notification {
+    background-color: transparent;
+    border: none;
+}
+
+window#waybar:not(.empty) #icons {
+    background-color: @crust;
+}
+
+/* --- Styling Module Individual --- */
+
+/* Padding umum untuk semua module */
+#custom-menu,
+#workspaces,
+#window,
+#clock,
+#mpris,
+#icons,
+#custom-notification {
+    padding: 1px 2px;
+    margin: 0px 2px;
+}
+
+/* Specific Settings */
+#custom-menu {
+    background-image: url("assets/Bazzite_Logo.svg");
+    background-repeat: no-repeat;
+    background-position: center;
+    background-size: 22px;
+    min-width: 24px;
+}
+
+/* #custom-menu:hover {
+    background-color: @surface0;
+} */
+
+#workspaces {
+    padding-right: 6px;
+}
+
+#workspaces button {
+    color: @overlay2;
+    font-size: 16px;
+    padding-right: 4px;
+    padding-left: 4px;
+}
+
+#workspaces button:hover {
+    background-color: transparent;
+    color: @mauve;
+}
+
+#workspaces button.active {
+    color: @mauve;
+}
+
+#workspaces button.urgent {
+    color: @yellow;
+}
+
+#window {
+    color: @blue;
+    margin-left: 12px;
+}
+
+#clock {
+    color: @yellow;
+}
+
+#mpris {
+    color: @blue;
+}
+
+#wireplumber {
+    color: @peach;
+}
+
+#bluetooth {
+    color: @mauve;
+}
+
+#networks {
+    color: @sky;
+    padding-right: 8px;
+}
+
+#tray {
+    padding-right: 8px;
+    padding-left: 8px
+}
+
+#tray>.passive {
+    -gtk-icon-effect: dim;
+}
+
+#tray>.needs-attention {
+    -gtk-icon-effect: highlight;
+}
+
+#custom-notification {
+    color: @lavender;
+}

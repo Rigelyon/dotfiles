@@ -1,0 +1,26 @@
+{
+    "include": [
+        "$HOME/.config/waybar/modules.jsonc",
+        "$HOME/.config/waybar/groups.jsonc"
+    ],
+    "layer": "top",
+    "heigth": 35,
+    "reload-style-on-change": true,
+    "margin-top": 0,
+    "margin-bottom": 0,
+    "margin-right": 4,
+    "margin-left": 4,
+    "modules-left": [
+        "custom/menu",
+        "hyprland/workspaces",
+        "hyprland/window"
+    ],
+    "modules-center": [
+        "clock"
+    ],
+    "modules-right": [
+        "mpris",
+        "group/icons",
+        "custom/notification"
+    ]
+}

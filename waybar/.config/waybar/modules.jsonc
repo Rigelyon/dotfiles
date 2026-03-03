@@ -1,0 +1,307 @@
+{
+    "clock": {
+        "interval": 1,
+        "format": " {:%H:%M} ",
+        "format-alt": " {:%A, %d %B %Y  %H:%M:%S}",
+        "tooltip-format": "<tt><small>{calendar}</small></tt>",
+        "calendar": {
+            "mode": "month",
+            "on-scroll": 1,
+            "format": {
+                "months": "<span color='#ffead3'><b>{}</b></span>",
+                "days": "<span color='#ecc6d9'><b>{}</b></span>",
+                "weeks": "<span color='#99ffdd'><b>W{:%V}</b></span>",
+                "weekdays": "<span color='#ffcc66'><b>{}</b></span>",
+                "today": "<span color='#ff6699'><b><u>{}</u></b></span>"
+            }
+        },
+        "actions": {
+            "on-scroll-up": "shift_up",
+            "on-scroll-down": "shift_down",
+            "on-click-middle": "shift_reset"
+        }
+    },
+    "tray": {
+        "format": " {icon} ",
+        "icon-size": 21,
+        "spacing": 10,
+        "icons": {
+            "blueman": "bluetooth",
+            "TelegramDesktop": "$HOME/.local/share/icons/hicolor/16x16/apps/telegram.png"
+        }
+    },
+    "hyprland/window": {
+        "format": "{title}",
+        "max-length": 25,
+        "all-outputs": false,
+        "separate-outputs": true,
+        "offscreen-css": true,
+        "offscreen-css-text": "(inactive)",
+        "rewrite": {
+            "(.*) — Mozilla Firefox": " $1",
+            "(.*) - fish": "> [$1]",
+            "(.*) - zsh": "> [$1]",
+            "(.*) - kitty": "> [$1]",
+            "(.*) - $term": "> [$1]",
+        },
+    },
+    "temperature": {
+        "interval": 10,
+        "tooltip": true,
+        "hwmon-path": [
+            "/sys/class/hwmon/hwmon1/temp1_input",
+            "/sys/class/thermal/thermal_zone0/temp"
+        ],
+        //"thermal-zone": 0,
+        "critical-threshold": 82,
+        "format-critical": "{temperatureC}°C {icon}",
+        "format": "{temperatureC}°C {icon}",
+        "format-icons": [
+            "󰈸"
+        ],
+        "on-click-right": "$HOME/.config/hypr/scripts/WaybarScripts.sh --nvtop"
+    },
+    "cpu": {
+        "format": "{usage}% 󰍛",
+        "interval": 1,
+        "min-length": 5,
+        "format-alt-click": "click",
+        "format-alt": "{icon0}{icon1}{icon2}{icon3} {usage:>2}% 󰍛",
+        "format-icons": [
+            "▁",
+            "▂",
+            "▃",
+            "▄",
+            "▅",
+            "▆",
+            "▇",
+            "█"
+        ],
+        "on-click-right": "gnome-system-monitor",
+    },
+    "disk": {
+        "interval": 30,
+        //"format": "󰋊",
+        "path": "/",
+        //"format-alt-click": "click",
+        "format": "{percentage_used}% 󰋊",
+        //"tooltip": true,
+        "tooltip-format": "{used} used out of {total} on {path} ({percentage_used}%)",
+    },
+    "network": {
+        "format": " {ifname} ",
+        "format-wifi": " <span size='15pt'>{icon}</span> ",
+        "format-ethernet": " <span size='15pt'>󰌘</span> ",
+        "format-disconnected": " <span size='15pt'>󰌙</span> ",
+        "tooltip-format": "{ipaddr}  {bandwidthUpBits}  {bandwidthDownBits}",
+        "format-linked": " <span size='15pt'>󰈁</span> {ifname} (No IP) ",
+        "tooltip-format-wifi": "{essid} {icon} {signalStrength}%",
+        "tooltip-format-ethernet": "{ifname} 󰌘",
+        "tooltip-format-disconnected": "󰌙 Disconnected",
+        "max-length": 30,
+        "format-icons": [
+            "󰤯",
+            "󰤟",
+            "󰤢",
+            "󰤥",
+            "󰤨"
+        ],
+        // "on-click-right": "$HOME/.config/hypr/scripts/WaybarScripts.sh --nmtui"
+    },
+    "network#speed": {
+        "interval": 1,
+        "format": "{ifname}",
+        "format-wifi": "  {bandwidthUpBytes}  {bandwidthDownBytes}",
+        "format-ethernet": "󰌘  {bandwidthUpBytes}  {bandwidthDownBytes}",
+        "tooltip-format": "{ipaddr}",
+        "format-linked": "<span size='15pt'>󰈁</span> {ifname} (No IP)",
+        "tooltip-format-wifi": "{essid} {icon} {signalStrength}%",
+        "tooltip-format-ethernet": "{ifname} 󰌘",
+        "tooltip-format-disconnected": "󰌙 Disconnected",
+        "min-length": 10,
+        "max-length": 24,
+        // "on-click-right": "$HOME/.config/hypr/scripts/WaybarScripts.sh --nmtui"
+    },
+    "wireplumber": {
+        "format": " <span size='15pt'>{icon}</span>  {volume} % ",
+        "format-muted": " <span size='15pt'></span> Mute ",
+        // "on-click": "$HOME/.config/hypr/scripts/Volume.sh --toggle",
+        "on-click-right": "pavucontrol -t 3",
+        // "on-scroll-up": "$HOME/.config/hypr/scripts/Volume.sh --inc",
+        // "on-scroll-down": "$HOME/.config/hypr/scripts/Volume.sh --dec",
+        "format-icons": [
+            "",
+            "",
+            "󰕾",
+            ""
+        ]
+    },
+    "mpris": {
+        "interval": 1,
+        "format": " {status_icon}  {title} - {artist} ",
+        "format-paused": "{status_icon}  {title} - {artist}",
+        "on-click-middle": "playerctl play-pause",
+        "on-click": "playerctl previous",
+        "on-click-right": "playerctl next",
+        "scroll-step": 5.0,
+        // "on-scroll-up": "$HOME/.config/hypr/scripts/Volume.sh --inc",
+        // "on-scroll-down": "$HOME/.config/hypr/scripts/Volume.sh --dec",
+        "smooth-scrolling-threshold": 1,
+        "tooltip": true,
+        "tooltip-format": "{status_icon} [{position} | {length}]\n\nTitle: {title}\nArtist: {artist}\nAlbum: {album}\nPlaying on: {player}",
+        "status-icons": {
+            "paused": "",
+            "playing": "",
+            "stopped": ""
+        },
+        "ignored-players": [
+            "firefox",
+            "brave"
+        ],
+        "max-length": 30
+    },
+    "memory": {
+        "interval": 10,
+        "format": "{used:0.1f}G 󰾆",
+        "format-alt": "{percentage}% 󰾆",
+        "format-alt-click": "click",
+        "tooltip": true,
+        "tooltip-format": "{used:0.1f}GB/{total:0.1f}G",
+        "on-click-right": "$HOME/.config/hypr/scripts/WaybarScripts.sh --btop"
+    },
+    "power-profiles-daemon": {
+        "format": "{icon}",
+        "tooltip-format": "Power profile: {profile}\nDriver: {driver}",
+        "tooltip": true,
+        "format-icons": {
+            "default": "",
+            "performance": "",
+            "balanced": "",
+            "power-saver": ""
+        }
+    },
+    "battery": {
+        "interval": 5,
+        "align": 0,
+        "rotate": 0,
+        // "bat": "BAT",
+        // "adapter": "ACAD",
+        "full-at": 100,
+        "design-capacity": false,
+        "states": {
+            "good": 95,
+            "warning": 30,
+            "critical": 15
+        },
+        "format": "{icon} {capacity}%",
+        "format-charging": " {capacity}%",
+        "format-plugged": "󱘖 {capacity}%",
+        "format-alt-click": "click",
+        "format-full": "{icon} Full",
+        "format-alt": "{icon} {time}",
+        "format-icons": [
+            "󰂎",
+            "󰁺",
+            "󰁻",
+            "󰁼",
+            "󰁽",
+            "󰁾",
+            "󰁿",
+            "󰂀",
+            "󰂁",
+            "󰂂",
+            "󰁹"
+        ],
+        "format-time": "{H}h {M}min",
+        "tooltip": true,
+        "tooltip-format": "{timeTo} {power}w"
+        // "on-click-middle": "$HOME/.config/hypr/scripts/ChangeBlur.sh",
+        // "on-click-right": "$HOME/.config/hypr/scripts/Wlogout.sh",
+    },
+    "bluetooth": {
+        "format": " <span size='15pt'>󰂯</span> ",
+        "format-disabled": " <span size='15pt'>󰂳</span> ",
+        "format-connected": " <span size='15pt'>󰂱</span> {num_connections} ",
+        "tooltip-format": "󰂯 {device_alias} ",
+        "tooltip-format-connected": "{device_enumerate}",
+        "tooltip-format-enumerate-connected": "󰂯 {device_alias} 󰂄{device_battery_percentage}%",
+        "tooltip": true,
+        // "on-click": "bluetoothctl"
+    },
+    "hyprland/workspaces": {
+        "active-only": false,
+        "all-outputs": true,
+        "format": "{icon}",
+        "show-special": false,
+        "on-click": "activate",
+        "on-scroll-up": "hyprctl dispatch workspace e+1",
+        "on-scroll-down": "hyprctl dispatch workspace e-1",
+        "persistent-workspaces": {
+            "*": 5
+        },
+        "format-icons": {
+            "active": "",
+            "default": "",
+            "urgent": ""
+        }
+    },
+    "custom/menu": {
+        "format": "    "
+    },
+    "custom/notification": {
+        "format": " <span size='15pt'>󰂚</span> ",
+        "tooltip": true,
+        "format-icons": {
+            "notification": "󰂚<span foreground='red'><sup></sup></span>",
+            "none": "󰂚",
+            "dnd-notification": "󰂛<span foreground='red'><sup></sup></span>",
+            "dnd-none": "󰂛",
+            "inhibited-notification": "󰂚<span foreground='red'><sup></sup></span>",
+            "inhibited-none": "󰂚",
+            "dnd-inhibited-notification": "󰂛<span foreground='red'><sup></sup></span>",
+            "dnd-inhibited-none": "󰂛"
+        }
+    },
+    "custom/power": {
+        "format": "⏻ ",
+        "tooltip": false,
+        "menu": "on-click",
+        "menu-file": "~/.config/waybar/power_menu.xml",
+        "menu-actions": {
+            "shutdown": "shutdown",
+            "reboot": "reboot",
+            "suspend": "systemctl suspend",
+            "hibernate": "systemctl hibernate"
+        }
+    },
+    "custom/separator#dot": {
+        "format": " ",
+        "interval": "once",
+        "tooltip": false
+    },
+    "custom/separator#dot-line": {
+        "format": "",
+        "interval": "once",
+        "tooltip": false
+    },
+    "custom/separator#line": {
+        "format": "|",
+        "interval": "once",
+        "tooltip": false
+    },
+    "custom/separator#blank": {
+        "format": "",
+        "interval": "once",
+        "tooltip": false
+    },
+    "custom/separator#blank_2": {
+        "format": "  ",
+        "interval": "once",
+        "tooltip": false
+    },
+    "custom/separator#blank_3": {
+        "format": "   ",
+        "interval": "once",
+        "tooltip": false
+    }
+}
