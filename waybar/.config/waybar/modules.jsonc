@@ -2,7 +2,7 @@
     "clock": {
         "interval": 1,
         "format": " {:%H:%M} ",
-        "format-alt": " {:%A, %d %B %Y  %H:%M:%S}",
+        "format-alt": " {:%H:%M:%S, %A, %d %B %Y} ",
         "tooltip-format": "<tt><small>{calendar}</small></tt>",
         "calendar": {
             "mode": "month",
@@ -31,7 +31,7 @@
         }
     },
     "hyprland/window": {
-        "format": "{title}",
+        "format": " {title} ",
         "max-length": 25,
         "all-outputs": false,
         "separate-outputs": true,
@@ -90,9 +90,10 @@
     },
     "network": {
         "format": " {ifname} ",
-        "format-wifi": " <span size='15pt'>{icon}</span> ",
+        "format-wifi": " <span size='16pt'>{icon}</span> ",
         "format-ethernet": " <span size='15pt'>󰌘</span> ",
         "format-disconnected": " <span size='15pt'>󰌙</span> ",
+        "format-disabled": " <span size='16pt'>󰀝</span> ",
         "tooltip-format": "{ipaddr}  {bandwidthUpBits}  {bandwidthDownBits}",
         "format-linked": " <span size='15pt'>󰈁</span> {ifname} (No IP) ",
         "tooltip-format-wifi": "{essid} {icon} {signalStrength}%",
@@ -106,7 +107,7 @@
             "󰤥",
             "󰤨"
         ],
-        // "on-click-right": "$HOME/.config/hypr/scripts/WaybarScripts.sh --nmtui"
+        "on-click-right": ""
     },
     "network#speed": {
         "interval": 1,
@@ -120,15 +121,15 @@
         "tooltip-format-disconnected": "󰌙 Disconnected",
         "min-length": 10,
         "max-length": 24,
-        // "on-click-right": "$HOME/.config/hypr/scripts/WaybarScripts.sh --nmtui"
+        "on-click-right": ""
     },
     "wireplumber": {
         "format": " <span size='15pt'>{icon}</span>  {volume} % ",
-        "format-muted": " <span size='15pt'></span> Mute ",
-        // "on-click": "$HOME/.config/hypr/scripts/Volume.sh --toggle",
+        "format-muted": " <span size='15pt'></span>  Muted ",
+        "on-click": "$HOME/.config/hypr/scripts/volumectl.sh --toggle",
         "on-click-right": "pavucontrol -t 3",
-        // "on-scroll-up": "$HOME/.config/hypr/scripts/Volume.sh --inc",
-        // "on-scroll-down": "$HOME/.config/hypr/scripts/Volume.sh --dec",
+        "on-scroll-up": "$HOME/.config/hypr/scripts/volumectl.sh --inc",
+        "on-scroll-down": "$HOME/.config/hypr/scripts/volumectl.sh --dec",
         "format-icons": [
             "",
             "",
@@ -139,13 +140,13 @@
     "mpris": {
         "interval": 1,
         "format": " {status_icon}  {title} - {artist} ",
-        "format-paused": "{status_icon}  {title} - {artist}",
+        "format-paused": " {status_icon}  {title} - {artist} ",
         "on-click-middle": "playerctl play-pause",
         "on-click": "playerctl previous",
         "on-click-right": "playerctl next",
         "scroll-step": 5.0,
-        // "on-scroll-up": "$HOME/.config/hypr/scripts/Volume.sh --inc",
-        // "on-scroll-down": "$HOME/.config/hypr/scripts/Volume.sh --dec",
+        "on-scroll-up": "$HOME/.config/hypr/scripts/volumectl.sh --inc",
+        "on-scroll-down": "$HOME/.config/hypr/scripts/volumectl.sh --dec",
         "smooth-scrolling-threshold": 1,
         "tooltip": true,
         "tooltip-format": "{status_icon} [{position} | {length}]\n\nTitle: {title}\nArtist: {artist}\nAlbum: {album}\nPlaying on: {player}",
@@ -167,7 +168,7 @@
         "format-alt-click": "click",
         "tooltip": true,
         "tooltip-format": "{used:0.1f}GB/{total:0.1f}G",
-        "on-click-right": "$HOME/.config/hypr/scripts/WaybarScripts.sh --btop"
+        // "on-click-right": ""
     },
     "power-profiles-daemon": {
         "format": "{icon}",
@@ -220,13 +221,13 @@
     },
     "bluetooth": {
         "format": " <span size='15pt'>󰂯</span> ",
-        "format-disabled": " <span size='15pt'>󰂳</span> ",
+        "format-disabled": " <span size='15pt'>󰂲</span> ",
         "format-connected": " <span size='15pt'>󰂱</span> {num_connections} ",
         "tooltip-format": "󰂯 {device_alias} ",
         "tooltip-format-connected": "{device_enumerate}",
         "tooltip-format-enumerate-connected": "󰂯 {device_alias} 󰂄{device_battery_percentage}%",
         "tooltip": true,
-        // "on-click": "bluetoothctl"
+        "on-click": "rfkill toggle bluetooth"
     },
     "hyprland/workspaces": {
         "active-only": false,
@@ -246,10 +247,11 @@
         }
     },
     "custom/menu": {
-        "format": "    "
+        "format": "    ",
+        "exec": "echo 'test'"
     },
     "custom/notification": {
-        "format": " <span size='15pt'>󰂚</span> ",
+        "format": " <span size='15pt'>{icon}</span> {text} ",
         "tooltip": true,
         "format-icons": {
             "notification": "󰂚<span foreground='red'><sup></sup></span>",
@@ -260,7 +262,13 @@
             "inhibited-none": "󰂚",
             "dnd-inhibited-notification": "󰂛<span foreground='red'><sup></sup></span>",
             "dnd-inhibited-none": "󰂛"
-        }
+        },
+        "return-type": "json",
+        "exec-if": "which swaync-client",
+        "exec": "swaync-client -swb",
+        "on-click": "sleep 0.1 && swaync-client -t -sw",
+        "on-right-click": "swaync-client -d -sw",
+        "escape": true
     },
     "custom/power": {
         "format": "⏻ ",

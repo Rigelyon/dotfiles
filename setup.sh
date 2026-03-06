@@ -12,6 +12,7 @@ GLOBAL_CONFLICT_ACTION=""
 GLOBAL_INSTALL_ACTION=""
 GLOBAL_RESTOW_ACTION=""
 DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+cd "$DOTFILES_DIR" || exit 1
 
 print_header() {
     clear

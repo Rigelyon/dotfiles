@@ -7,7 +7,7 @@
     "heigth": 35,
     "reload-style-on-change": true,
     "margin-top": 0,
-    "margin-bottom": 0,
+    "margin-bottom": 2,
     "margin-right": 4,
     "margin-left": 4,
     "modules-left": [

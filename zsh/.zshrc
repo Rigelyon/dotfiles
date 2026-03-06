@@ -1,12 +1,5 @@
 eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 
-# Enable Powerlevel10k instant prompt. Should stay close to the top of ~/.zshrc.
-# Initialization code that may require console input (password prompts, [y/n]
-# confirmations, etc.) must go above this block; everything else may go below.
-if [[ -r "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh" ]]; then
-  source "${XDG_CACHE_HOME:-$HOME/.cache}/p10k-instant-prompt-${(%):-%n}.zsh"
-fi
-
 # If you come from bash you might have to change your $PATH.
 # export PATH=$HOME/bin:/usr/local/bin:$PATH
 
@@ -29,14 +22,12 @@ export PATH="$PATH:/opt/nvim-linux64/bin"
 export PATH="/usr/local/bin:/usr/local/sbin:~/bin:$PATH" 
 export PATH="$HOME/.local/bin:$PATH"
 
+export "MICRO_TRUECOLOR=1"
+export STARSHIP_CONFIG="$HOME/.config/starship/starship.toml"
+
 # check the dnf plugins commands here
 # https://github.com/ohmyzsh/ohmyzsh/tree/master/plugins/dnf
 
-
-# Display Pokemon-colorscripts
-# Project page: https://gitlab.com/phoneybadger/pokemon-colorscripts#on-other-distros-and-macos
-#pokemon-colorscripts --no-title -s -r #without fastfetch
-#pokemon-colorscripts --no-title -s -r | fastfetch -c $HOME/.config/fastfetch/config-pokemon.jsonc --logo-type file-raw --logo-height 10 --logo-width 5 --logo -
 
 # fastfetch. Will be disabled if above colorscript was chosen to install
 # fastfetch -c $HOME/.config/fastfetch/config-compact.jsonc
@@ -62,7 +53,7 @@ zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
 zstyle ':completion:*' menu no
 
 # Set-up default editor
-EDITOR=nvim
+EDITOR=micro
 
 # Enable walk exit cd
 function lk {
@@ -75,25 +66,16 @@ alias l='ls -l'
 alias la='ls -a'
 alias lla='ls -la'
 alias lt='ls --tree'
-
-# Set-up aliases
-alias mc='micro'
-alias yazid='yazi /mnt/D/'
-alias yazic='yazi /mnt/C/'
-alias yyd='yy /mnt/D/'
-alias yyc='yy /mnt/C/'
-alias yye='yy /mnt/E/'
 alias lk='lk --icons'
 alias lf='lk --icons --fuzzy'
+
+# Set-up aliases
+alias cat='bat'
+alias curl='curlie'
+alias mc='micro'
 alias ttyclock='tty-clock -B -C 6'
+alias lzp='DOCKER_HOST=unix://$(podman info -f "{{.Host.RemoteSocket.Path}}") lazydocker'
 
-source ~/powerlevel10k/powerlevel10k.zsh-theme
-
-# To customize prompt, run `p10k configure` or edit ~/.p10k.zsh.
-[[ ! -f ~/.p10k.zsh ]] || source ~/.p10k.zsh
-
-# Spicetify
-export PATH=$PATH:/home/pandu/.spicetify
 
 # To enable change working directory when exiting yazi
 function yy() {
@@ -106,3 +88,27 @@ function yy() {
 }
 
 eval "$(zoxide init --cmd cd zsh)"
+eval "$(starship init zsh)"
+
+autoload -Uz add-zsh-hook
+add-zsh-hook precmd transient-prompt-precmd
+
+TRANSIENT_PROMPT="${PROMPT// prompt / prompt --profile transient }"
+TRANSIENT_RPROMPT="${PROMPT// prompt / prompt --profile rtransient }"
+
+function transient-prompt-precmd {
+    # Fix ctrl+c behavior
+    TRAPINT() { transient-prompt; return $(( 128 + $1 )) }
+
+    # Save transient prompt
+    SAVED_PROMPT="$(eval "printf '%s' \"${TRANSIENT_PROMPT}\"")"
+    SAVED_RPROMPT="$(eval "printf '%s' \"${TRANSIENT_RPROMPT}\"")"
+}
+
+autoload -Uz add-zle-hook-widget
+add-zle-hook-widget zle-line-finish transient-prompt
+
+function transient-prompt() {
+    # Use saved transient prompt
+    PROMPT="$SAVED_PROMPT" RPROMPT="$SAVED_RPROMPT" zle .reset-prompt
+}

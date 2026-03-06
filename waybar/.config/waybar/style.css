@@ -20,7 +20,6 @@ window#waybar {
     background-color: @base;
     /* border: 2px solid @surface0; */
     border-radius: 8px;
-    opacity: 0.9;
 }
 
 /* Saat bar tersembunyi */
@@ -54,12 +53,12 @@ window#waybar:not(.empty) #custom-menu,
 window#waybar:not(.empty) #window,
 window#waybar:not(.empty) #clock,
 window#waybar:not(.empty) #mpris,
-window#waybar:not(.empty) #icons,
 window#waybar:not(.empty) #custom-notification {
     background-color: transparent;
     border: none;
 }
 
+window#waybar:not(.empty) #workspaces,
 window#waybar:not(.empty) #icons {
     background-color: @crust;
 }
@@ -87,9 +86,9 @@ window#waybar:not(.empty) #icons {
     min-width: 24px;
 }
 
-/* #custom-menu:hover {
-    background-color: @surface0;
-} */
+#custom-menu:hover {
+    color: @mauve;
+}
 
 #workspaces {
     padding-right: 6px;
@@ -126,6 +125,7 @@ window#waybar:not(.empty) #icons {
 
 #mpris {
     color: @blue;
+    margin-right: 12px;
 }
 
 #wireplumber {
@@ -156,4 +156,8 @@ window#waybar:not(.empty) #icons {
 
 #custom-notification {
     color: @lavender;
+}
+
+#custom-notification:hover {
+    color: @blue;
 }
