@@ -107,6 +107,7 @@
             "󰤥",
             "󰤨"
         ],
+        "on-click": "quickshell --run ~/.config/quickshell/network-widget",
         "on-click-right": ""
     },
     "network#speed": {
@@ -121,6 +122,7 @@
         "tooltip-format-disconnected": "󰌙 Disconnected",
         "min-length": 10,
         "max-length": 24,
+        "on-click": "quickshell --run ~/.config/quickshell/network-widget",
         "on-click-right": ""
     },
     "wireplumber": {

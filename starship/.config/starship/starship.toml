@@ -2,6 +2,7 @@
 
 format = """
 [](bold red)\
+${custom.distrobox}\
 $os\
 $username\
 [](bold bg:peach fg:red)\
@@ -32,6 +33,12 @@ palette = 'catppuccin_mocha'
 
 # Inserts a blank line between shell prompts
 add_newline = false
+
+[custom.distrobox]
+description = "Distrobox indicator"
+when = 'test -f /run/.containerenv'
+command = 'echo "󰏖"'
+style = "bold bg:red fg:crust"
 
 [profiles]
 transient="""

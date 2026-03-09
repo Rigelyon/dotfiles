@@ -1,0 +1,11 @@
+{
+  "city": "Tasikmalaya",
+  "country": "ID",
+  "method": 11,
+  "showCountdown": true,
+  "showNotifications": true,
+  "playAzan": false,
+  "azanFile": "azan1.mp3",
+  "school": 0,
+  "hijriDayOffset": 0
+}

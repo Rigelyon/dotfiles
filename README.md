@@ -94,6 +94,7 @@ Package to check:
 - **lsd**
 - **micro**
 - **mpv**
+- **noctalia**
 - **nvim** (Neovim)
 - **ripgrep**
 - **rofi**
