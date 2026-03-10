@@ -21,6 +21,7 @@ ShellRoot {
         WlrLayershell.layer: WlrLayer.Overlay
         WlrLayershell.namespace: "recording-overlay"
         exclusiveZone: -1
+        mask: Region {}
         
         color: "transparent"
         
