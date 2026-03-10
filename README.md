@@ -96,12 +96,12 @@ Package to check:
 - **mpv**
 - **noctalia**
 - **nvim** (Neovim)
+- **quickshell**
 - **ripgrep**
 - **rofi**
 - **starship**
 - **swaync**
 - **vlc**
-- **waybar**
 - **wlogout**
 - **yazi**
 - **zoxide**

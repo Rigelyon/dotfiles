@@ -652,6 +652,11 @@ add_new_config() {
                     
                     echo ""
                     echo -e "${GREEN}Package '$pkg_name' registered successfully!${NC}"
+                    echo ""
+                    read -p "Would you like to link (install) this config now? (y/N): " link_now
+                    if [[ "$link_now" =~ ^[Yy]$ ]]; then
+                        install_config "$pkg_name"
+                    fi
                     add_report "REGISTERED EXISTING PACKAGE: $pkg_name (command: $cmd_check)"
                     return
                     ;;
@@ -781,11 +786,16 @@ add_new_config() {
                     echo ""
                     echo -e "${GREEN}Package '$pkg_name' imported successfully!${NC}"
                     echo ""
-                    echo -e "${BLUE}Next steps:${NC}"
-                    echo "1. Review imported files at: $DOTFILES_DIR/$pkg_name/"
-                    echo "2. Run './setup.sh' and select 'Install/Update Configs' to create symlinks"
-                    echo "   (The original file will be backed up)"
-                    echo ""
+                    read -p "Would you like to link (install) this config now? (y/N): " link_now
+                    if [[ "$link_now" =~ ^[Yy]$ ]]; then
+                        install_config "$pkg_name"
+                    else
+                        echo -e "${BLUE}Next steps:${NC}"
+                        echo "1. Review imported files at: $DOTFILES_DIR/$pkg_name/"
+                        echo "2. Run './setup.sh' and select 'Install/Update Configs' to create symlinks"
+                        echo "   (The original file will be backed up)"
+                        echo ""
+                    fi
                     
                     add_report "IMPORTED PACKAGE: $pkg_name (command: $cmd_check, path: $rel_path)"
                     return
@@ -899,16 +909,21 @@ EOF
     echo ""
     echo -e "${GREEN}Package '$pkg_name' added successfully!${NC}"
     echo ""
-    echo -e "${BLUE}Next steps:${NC}"
-    
-    if [ "$is_file" -eq 1 ]; then
-        echo "1. Edit your config file at: $pkg_path"
+    read -p "Would you like to link (install) this config now? (y/N): " link_now
+    if [[ "$link_now" =~ ^[Yy]$ ]]; then
+        install_config "$pkg_name"
     else
-        echo "1. Add your config files to: $pkg_path"
+        echo -e "${BLUE}Next steps:${NC}"
+        
+        if [ "$is_file" -eq 1 ]; then
+            echo "1. Edit your config file at: $pkg_path"
+        else
+            echo "1. Add your config files to: $pkg_path"
+        fi
+        
+        echo "2. Run './setup.sh' and select 'Install/Update Configs' to deploy"
+        echo ""
     fi
-    
-    echo "2. Run './setup.sh' and select 'Install/Update Configs' to deploy"
-    echo ""
     
     add_report "ADDED NEW PACKAGE: $pkg_name (command: $cmd_check, path: $rel_path)"
 }
