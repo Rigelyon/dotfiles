@@ -43,7 +43,7 @@ done
 if [ "$MODE" = "area" ]; then
     geom=$(slurp)
     if [ $? -ne 0 ]; then
-        notify-send -a "Screenshot" "Cancelled" "Area selection cancelled."
+        notify-send -a "Screenshot" -u low "Cancelled" "Area selection cancelled."
         exit 1
     fi
 
@@ -78,7 +78,7 @@ if [ "$MODE" = "area" ]; then
             satty -f "$FINAL_FILE" --output-filename "$FINAL_FILE"
         elif [ "$SAVED_ACTION" = "delete" ]; then
             rm -f "$FINAL_FILE"
-            notify-send -a "Screenshot" "File Deleted" "The saved screenshot was deleted."
+            notify-send -a "Screenshot" -u low "File Deleted" "The saved screenshot was deleted."
         fi
     elif [ "$ACTION" = "view" ]; then
         FINAL_FILE="$SAVE_DIR/Screenshot_$(date +'%Y-%m-%d_%H-%M-%S').png"
@@ -129,5 +129,5 @@ if [ "$ACTION" = "view" ]; then
     satty -f "$FINAL_FILE" --output-filename "$FINAL_FILE"
 elif [ "$ACTION" = "delete" ]; then
     rm -f "$FINAL_FILE"
-    notify-send -a "Screenshot" "File Deleted" "The saved screenshot was deleted."
+    notify-send -a "Screenshot" -u low "File Deleted" "The saved screenshot was deleted."
 fi

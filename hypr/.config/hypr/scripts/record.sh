@@ -45,13 +45,10 @@ while [[ $# -gt 0 ]]; do
 done
 
 if pgrep -x "wf-recorder" > /dev/null; then
-    # Jika sedang merekam, hentikan rekaman
     pkill -INT -x wf-recorder
     
-    # Hentikan overlay quickshell jika ada
     pkill -f "quickshell.*recording-overlay\.qml" || true
 
-    # Tunggu hingga proses wf-recorder benar-benar berhenti
     while pgrep -x "wf-recorder" > /dev/null; do
         sleep 0.1
     done
@@ -79,14 +76,13 @@ if pgrep -x "wf-recorder" > /dev/null; then
         xdg-open "$FINAL_FILE"
     elif [ "$SAVED_ACTION" = "delete" ]; then
         rm -f "$FINAL_FILE"
-        notify-send -a "Screenrecord" "File Deleted" "The saved recording was deleted."
+        notify-send -a "Screenrecord" -u low "File Deleted" "The saved recording was deleted."
     fi
     
     rm -f "$TMP_LATEST"
     exit 0
 fi
 
-# Jika tidak ada proses wf-recorder berjalan, mulai rekaman
 FINAL_FILE="$SAVE_DIR/Recording_$(date +'%Y-%m-%d_%H-%M-%S').mp4"
 echo "$FINAL_FILE" > "$TMP_LATEST"
 
@@ -94,26 +90,24 @@ QUICKSHELL_FILE="$HOME/.config/quickshell/recording-overlay.qml"
 
 case "$MODE" in
     fullscreen)
-        notify-send -a "Screenrecord" "Recording Started" "Fullscreen mode"
+        notify-send -a "Screenrecord" -u low "Recording Started" "Fullscreen mode"
         wf-recorder -f "$FINAL_FILE" &
         ;;
     area)
         geom=$(slurp)
         if [ $? -ne 0 ]; then
-            notify-send -a "Screenrecord" "Cancelled" "Area selection cancelled."
+            notify-send -a "Screenrecord" -u low "Cancelled" "Area selection cancelled."
             rm -f "$TMP_LATEST"
             exit 1
         fi
         
-        # Parse koordinat geometry slurp (X,Y WxH) menjadi gx, gy, gw, gh
         IFS=', x' read -r gx gy gw gh <<< "$geom"
         
-        # Jalankan overlay Quickshell jika file ada
         if [ -f "$QUICKSHELL_FILE" ]; then
             RECORD_X=$gx RECORD_Y=$gy RECORD_W=$gw RECORD_H=$gh quickshell --path "$QUICKSHELL_FILE" > /tmp/quickshell_overlay.log 2>&1 &
         fi
 
-        notify-send -a "Screenrecord" "Recording Started" "Area mode"
+        notify-send -a "Screenrecord" -u low "Recording Started" "Area mode"
         wf-recorder -g "$geom" -f "$FINAL_FILE" &
         ;;
     active)
@@ -125,15 +119,13 @@ case "$MODE" in
         fi
         geom=$(echo "$active_window" | jq -r '"\(.at[0]),\(.at[1]) \(.size[0])x\(.size[1])"')
         
-        # Parse koordinat geometry (X,Y WxH) menjadi gx, gy, gw, gh
         IFS=', x' read -r gx gy gw gh <<< "$geom"
         
-        # Jalankan overlay Quickshell jika file ada
         if [ -f "$QUICKSHELL_FILE" ]; then
             RECORD_X=$gx RECORD_Y=$gy RECORD_W=$gw RECORD_H=$gh quickshell --path "$QUICKSHELL_FILE" > /tmp/quickshell_overlay.log 2>&1 &
         fi
         
-        notify-send -a "Screenrecord" "Recording Started" "Active window mode"
+        notify-send -a "Screenrecord" -u low "Recording Started" "Active window mode"
         wf-recorder -g "$geom" -f "$FINAL_FILE" &
         ;;
     *)
@@ -149,7 +141,6 @@ if [ -n "$MAX_TIME" ] && [ "$MAX_TIME" -gt 0 ]; then
         sleep "$MAX_TIME"
         if pgrep -x "wf-recorder" > /dev/null; then
             notify-send -a "Screenrecord" -u critical "Time limit reached" "Recording automatically stopped after ${MAX_TIME}s"
-            # Call this script again to gracefully stop recording and save the file
             "$0" &
         fi
     ) &
