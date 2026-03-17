@@ -330,7 +330,7 @@ Item {
         NText {
             Layout.fillWidth: true
             text: rootItem.pluginApi?.tr("keybind-cheatsheet.settings.mod-var-hint") ||
-                "The variable name used for your Super key (e.g., $mod or $mod)."
+                "The variable name used for your Super key (e.g., $mod or $mainMod)."
             color: Color.mOnSurfaceVariant
             pointSize: Style.fontSizeXS
             wrapMode: Text.WordWrap

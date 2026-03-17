@@ -1,0 +1,34 @@
+{
+  "commands": [
+    {
+      "name": "System Log",
+      "command": "gtk-launch system-log",
+      "icon": "terminal-2"
+    },
+    {
+      "name": "Pomodoro",
+      "command": "qs -c noctalia-shell ipc call plugin:pomodoro toggle",
+      "icon": "terminal-2"
+    },
+    {
+      "name": "Clipper",
+      "command": "qs -c noctalia-shell ipc call plugin:clipper toggle",
+      "icon": "terminal-2"
+    },
+    {
+      "name": "Todo",
+      "command": "qs -c noctalia-shell ipc call plugin:todo togglePanel",
+      "icon": "terminal-2"
+    },
+    {
+      "name": "Timer",
+      "command": "qs -c noctalia-shell ipc call plugin:timer toggle",
+      "icon": "terminal-2"
+    },
+    {
+      "name": "Wallpaper",
+      "command": "qs -c noctalia-shell ipc call wallpaper toggle",
+      "icon": "terminal-2"
+    }
+  ]
+}

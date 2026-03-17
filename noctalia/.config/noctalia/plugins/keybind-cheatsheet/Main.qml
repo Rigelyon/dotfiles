@@ -624,7 +624,7 @@ Item {
 
             // Build modifiers list properly
             var mods = [];
-            // TUTAJ ZMIANA: Sprawdzamy czy to ustawiony mod (np. $mod) albo SUPER
+            // TUTAJ ZMIANA: Sprawdzamy czy to ustawiony mod (np. $MAINMOD) albo SUPER
             if (modPart.includes(modVarUpper) || modPart.includes("SUPER")) mods.push("Super");
 
             if (modPart.includes("SHIFT")) mods.push("Shift");

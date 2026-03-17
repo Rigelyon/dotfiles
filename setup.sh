@@ -11,6 +11,7 @@ BACKUP_SUFFIX=".dotfiles-backup"
 GLOBAL_CONFLICT_ACTION=""
 GLOBAL_INSTALL_ACTION=""
 GLOBAL_RESTOW_ACTION=""
+GLOBAL_RESTORE_ACTION=""
 DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$DOTFILES_DIR" || exit 1
 
@@ -516,40 +517,60 @@ install_config() {
 restore_config() {
     local pkg="$1"
     local pkg_dir="$DOTFILES_DIR/$pkg"
-    echo -e "${BLUE}Checking backups for $pkg...${NC}"
     
     local found_backups=0
-    
+    local backup_files=()
+
+    # First, scan for backups without prompting
     while IFS= read -r file; do
         local rel_path="${file#$pkg_dir/}"
         local target_path="$HOME/$rel_path"
         local backup_path="$target_path$BACKUP_SUFFIX"
         
-        if [ -f "$backup_path" ] || [ -d "$backup_path" ]; then
-            echo -e "Found backup: $backup_path"
+        if [ -e "$backup_path" ]; then
+            backup_files+=("$backup_path|$target_path")
             found_backups=1
-            read -p "Restore this backup (overwrite current)? (y/N): " choice < /dev/tty
-            if [[ "$choice" =~ ^[Yy]$ ]]; then
-                if [ -e "$target_path" ] || [ -L "$target_path" ]; then
-                    rm -rf "$target_path"
-                fi
-                mv "$backup_path" "$target_path"
-                echo -e "${GREEN}Restored $target_path${NC}"
-                add_report "RESTORED: $target_path"
-            else
-                 add_report "SKIPPED RESTORE: $backup_path"
-            fi
         fi
     done < <(find "$pkg_dir" -type f)
     
     if [ "$found_backups" -eq 0 ]; then
-        echo "No backups found for $pkg."
+        return
+    fi
+
+    echo -e "${BLUE}Backups found for $pkg. Processing...${NC}"
+
+    local action=""
+    if [ -n "$GLOBAL_RESTORE_ACTION" ]; then
+        action="$GLOBAL_RESTORE_ACTION"
     else
-        read -p "Unstow $pkg packages (remove existing symlinks)? (y/N): " choice < /dev/tty
-        if [[ "$choice" =~ ^[Yy]$ ]]; then
-             stow -t "$HOME" -D -v "$pkg"
-             add_report "UNSTOWED: $pkg"
-        fi
+        read -p "Restore backups for $pkg? (y/N/a/s): " choice
+        case $choice in
+            [Aa]) action="RESTORE"; GLOBAL_RESTORE_ACTION="RESTORE" ;;
+            [Ss]) action="SKIP"; GLOBAL_RESTORE_ACTION="SKIP" ;;
+            [Yy]) action="RESTORE" ;;
+            *) action="SKIP" ;;
+        esac
+    fi
+
+    if [ "$action" == "RESTORE" ]; then
+        for entry in "${backup_files[@]}"; do
+            local b_path="${entry%|*}"
+            local t_path="${entry#*|}"
+            
+            if [ -e "$t_path" ] || [ -L "$t_path" ]; then
+                rm -rf "$t_path"
+            fi
+            mv "$b_path" "$t_path"
+            echo -e "  ${GREEN}✓ Restored $t_path${NC}"
+            add_report "RESTORED: $t_path"
+        done
+        
+        # Automatically offer to unstow if we restored files
+        stow -t "$HOME" -D -v "$pkg" 2>/dev/null
+        add_report "UNSTOWED: $pkg (Restored local files)"
+    else
+        echo "  Skipping restore for $pkg."
+        add_report "SKIPPED RESTORE: $pkg"
     fi
 }
 
@@ -586,7 +607,45 @@ add_new_config() {
                     if [ -z "$cmd_check" ]; then
                         cmd_check="$pkg_name"
                     fi
-                    
+                    restore_config() {
+    local pkg="$1"
+    local pkg_dir="$DOTFILES_DIR/$pkg"
+    echo -e "${BLUE}Checking backups for $pkg...${NC}"
+    
+    local found_backups=0
+    
+    while IFS= read -r file; do
+        local rel_path="${file#$pkg_dir/}"
+        local target_path="$HOME/$rel_path"
+        local backup_path="$target_path$BACKUP_SUFFIX"
+        
+        if [ -f "$backup_path" ] || [ -d "$backup_path" ]; then
+            echo -e "Found backup: $backup_path"
+            found_backups=1
+            read -p "Restore this backup (overwrite current)? (y/N): " choice < /dev/tty
+            if [[ "$choice" =~ ^[Yy]$ ]]; then
+                if [ -e "$target_path" ] || [ -L "$target_path" ]; then
+                    rm -rf "$target_path"
+                fi
+                mv "$backup_path" "$target_path"
+                echo -e "${GREEN}Restored $target_path${NC}"
+                add_report "RESTORED: $target_path"
+            else
+                 add_report "SKIPPED RESTORE: $backup_path"
+            fi
+        fi
+    done < <(find "$pkg_dir" -type f)
+    
+    if [ "$found_backups" -eq 0 ]; then
+        echo "No backups found for $pkg."
+    else
+        read -p "Unstow $pkg packages (remove existing symlinks)? (y/N): " choice < /dev/tty
+        if [[ "$choice" =~ ^[Yy]$ ]]; then
+             stow -t "$HOME" -D -v "$pkg"
+             add_report "UNSTOWED: $pkg"
+        fi
+    fi
+}
                     local deps_file="$DOTFILES_DIR/dependencies.conf"
                     local new_entry="$pkg_name:$cmd_check"
                     
@@ -1202,18 +1261,14 @@ main_menu() {
             done
             ;;
         2)
-            echo "Starting restore process..."
-             for pkg in */ ; do
+            echo -e "${YELLOW}Starting restore process...${NC}"
+            GLOBAL_RESTORE_ACTION=""
+            
+            for pkg in */ ; do
                 pkg=${pkg%/}
-                if [[ "$pkg" == "setup.sh" || "$pkg" == "README.md" || "$pkg" == "LICENSE" || "$pkg" == ".git" ]]; then
-                    continue
-                fi
+                [[ "$pkg" =~ ^(setup.sh|README.md|LICENSE|.git)$ ]] && continue
                 
-                read -p "Check restore for $pkg? (y/N): " choice
-                if [[ "$choice" =~ ^[Yy]$ ]]; then
-                    restore_config "$pkg"
-                fi
-                echo "-----------------------------------"
+                restore_config "$pkg"
             done
             ;;
         3)

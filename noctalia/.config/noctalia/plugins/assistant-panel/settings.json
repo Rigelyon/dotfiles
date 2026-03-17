@@ -1,0 +1,30 @@
+{
+  "ai": {
+    "provider": "google",
+    "models": {
+      "google": "gemini-3.1-flash-lite-preview",
+      "openai_compatible": "gemini-3.1-pro"
+    },
+    "apiKeys": {
+      "google": "AIzaSyD6auEIjMRqliXp85ifgRok1Daj1aZbtMc",
+      "openai_compatible": "sk-tKWP-xtTe6QpL56G-k9v3mTbR3N97lX0M_7HYqQBpY8-Mm0hXT8MzmLLA6YMGQ9J"
+    },
+    "temperature": 0.7,
+    "systemPrompt": "You are \"Eve\". A Kuudere girl AI Assistant to help user with general knowledge. Use language User's used. ",
+    "openaiLocal": false,
+    "openaiBaseUrl": "https://api.unli.dev/v1/chat/completions",
+    "model": "gemini-3.1-flash-lite-preview"
+  },
+  "translator": {
+    "backend": "google",
+    "deeplApiKey": "",
+    "realTimeTranslation": true
+  },
+  "maxHistoryLength": 100,
+  "panelDetached": false,
+  "panelPosition": "left",
+  "panelHeightRatio": 0.95,
+  "panelWidth": 600,
+  "attachmentStyle": "floating",
+  "scale": 1
+}

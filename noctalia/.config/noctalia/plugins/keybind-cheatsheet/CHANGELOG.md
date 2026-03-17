@@ -67,7 +67,7 @@
 
 **README Updates**
 - Fixed IPC command syntax in examples
-- Updated keybind format examples to use `$mod` instead of `$mod`
+- Updated keybind format examples to use `$mainMod` instead of `$mod`
 - Clarified configuration file paths and formats
 
 ---

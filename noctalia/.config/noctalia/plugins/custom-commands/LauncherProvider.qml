@@ -15,6 +15,7 @@ Item {
     property string supportedLayouts: "list"
     property bool supportsAutoPaste: false
     property bool ignoreDensity: false
+    property bool trackUsage: true // Track usage frequency for "most used" sorting
 
     // Constants
     property int maxResults: 50
@@ -85,13 +86,15 @@ Item {
         return FuzzySort.go(query, commandList, {
             limit: maxResults,
             keys: ["name", "command"]
-        }).map(r => formatEntry(r.obj));
+        }).map(r => formatEntry(r.obj, r.score));
     }
 
-    function formatEntry(cmd) {
+    function formatEntry(cmd, score) {
         return {
+            "usageKey": cmd.command,
             "name": cmd.name,
             "description": cmd.command,
+            "_score": (score !== undefined ? score : 0),
             "icon": cmd.icon || "terminal-2",
             "isTablerIcon": true,
             "badgeIcon": "terminal-2",

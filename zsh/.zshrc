@@ -75,6 +75,7 @@ alias curl='curlie'
 alias mc='micro'
 alias ttyclock='tty-clock -B -C 6'
 alias fetch='fastfetch'
+alias py='python3'
 
 alias spotx-install='bash <(curl -sSL https://raw.githubusercontent.com/SpotX-Official/SpotX-Bash/main/spotx.sh)'
 alias lzp='DOCKER_HOST=unix://$(podman info -f "{{.Host.RemoteSocket.Path}}") lazydocker'
@@ -115,3 +116,5 @@ function transient-prompt() {
     # Use saved transient prompt
     PROMPT="$SAVED_PROMPT" RPROMPT="$SAVED_RPROMPT" zle .reset-prompt
 }
+
+. "$HOME/.local/share/../bin/env"

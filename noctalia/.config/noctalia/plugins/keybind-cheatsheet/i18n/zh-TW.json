@@ -47,7 +47,7 @@
       "keybind-example-hyprland": "Hyprland: bind = $mod, F1, exec, qs -c \"noctalia-shell\" ipc call plugin:keybind-cheatsheet toggle",
       "keybind-example-niri": "Niri: Super+F1 { spawn \"qs\" \"-c\" \"noctalia-shell\" \"ipc\" \"call\" \"plugin\" \"togglePanel\" \"keybind-cheatsheet\"; }",
       "mod-var": "Mod 鍵變數",
-      "mod-var-hint": "用於 Super 鍵的變數名稱（例如 $mod 或 $mod）。",
+      "mod-var-hint": "用於 Super 鍵的變數名稱（例如 $mod 或 $mainMod）。",
       "width-range": "px (400-3000)",
       "height-range": "px (300-2000)",
       "hyprland-path": "Hyprland 路徑",
