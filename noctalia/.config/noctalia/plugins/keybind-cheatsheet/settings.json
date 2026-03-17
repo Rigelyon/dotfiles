@@ -4,14 +4,6 @@
       "title": "COMMONS",
       "binds": [
         {
-          "keys": "Super + F1",
-          "desc": "Open Keybinds Cheatsheet"
-        },
-        {
-          "keys": "Super + S",
-          "desc": "Open App Launcher"
-        },
-        {
           "keys": "Super + B",
           "desc": "Open Browser"
         },
@@ -24,12 +16,32 @@
           "desc": "Open File Manager"
         },
         {
+          "keys": "Calc",
+          "desc": "Open Calculator"
+        },
+        {
+          "keys": "Super + S",
+          "desc": "Open App Launcher"
+        },
+        {
           "keys": "Super + ESCAPE",
           "desc": "Open Control Center"
         },
         {
           "keys": "Super + COMMA",
           "desc": "Open Settings"
+        },
+        {
+          "keys": "Super + F1",
+          "desc": "Open Keybinds Cheatsheet"
+        },
+        {
+          "keys": "Super + X",
+          "desc": "Scratchpad"
+        },
+        {
+          "keys": "Super + SLASH",
+          "desc": "Open AI Assistant"
         },
         {
           "keys": "Super + Ctrl + Scroll Down",
@@ -40,20 +52,12 @@
           "desc": "Zoom Out"
         },
         {
-          "keys": "Super + X",
-          "desc": "Scratchpad"
-        },
-        {
           "keys": "Sleep",
           "desc": "Sleep"
         },
         {
           "keys": "AIRPLANE",
           "desc": "Airplane Mode"
-        },
-        {
-          "keys": "Calc",
-          "desc": "Open Calculator"
         }
       ]
     },
@@ -81,10 +85,6 @@
           "desc": "Brightness Down"
         },
         {
-          "keys": "XF86AUDIOPLAYPAUSE",
-          "desc": "Play/Pause"
-        },
-        {
           "keys": "Play",
           "desc": "Play"
         },
@@ -103,6 +103,10 @@
         {
           "keys": "Prev",
           "desc": "Previous Track"
+        },
+        {
+          "keys": "XF86AUDIOPLAYPAUSE",
+          "desc": "Play/Pause"
         }
       ]
     },
@@ -118,16 +122,16 @@
           "desc": "Screenshot Area"
         },
         {
-          "keys": "Super + INSERT",
-          "desc": "OCR Scan"
-        },
-        {
           "keys": "Shift + PrtSc",
           "desc": "Record Screen"
         },
         {
           "keys": "Super + Shift + PrtSc",
           "desc": "Record Area"
+        },
+        {
+          "keys": "Super + INSERT",
+          "desc": "OCR Scan"
         },
         {
           "keys": "Super + D",
@@ -138,6 +142,14 @@
     {
       "title": "WINDOW MANAGEMENT",
       "binds": [
+        {
+          "keys": "Super + Q",
+          "desc": "Close Active Window"
+        },
+        {
+          "keys": "Super + Shift + Q",
+          "desc": "Terminate Active Process"
+        },
         {
           "keys": "Super + F",
           "desc": "Fullscreen"
@@ -155,20 +167,20 @@
           "desc": "Float All Windowss"
         },
         {
-          "keys": "Super + Q",
-          "desc": "Close Active Window"
+          "keys": "Super + LEFT",
+          "desc": "Focus Left"
         },
         {
-          "keys": "Super + Shift + Q",
-          "desc": "Terminate Active Process"
+          "keys": "Super + RIGHT",
+          "desc": "Focus Right"
         },
         {
-          "keys": "Super + Left Click",
-          "desc": "Move Window"
+          "keys": "Super + UP",
+          "desc": "Focus Up"
         },
         {
-          "keys": "Super + Right Click",
-          "desc": "Resize Window"
+          "keys": "Super + DOWN",
+          "desc": "Focus Down"
         },
         {
           "keys": "Alt + TAB",
@@ -177,31 +189,6 @@
         {
           "keys": "Alt + TAB",
           "desc": "Bring Active Window"
-        },
-        {
-          "keys": "Ctrl + Alt + DELETE",
-          "desc": "Exit Hyprland"
-        }
-      ]
-    },
-    {
-      "title": "ADVANCED WINDOW MANAGEMENT",
-      "binds": [
-        {
-          "keys": "Super + Shift + LEFT",
-          "desc": "Resize Window Left"
-        },
-        {
-          "keys": "Super + Shift + RIGHT",
-          "desc": "Resize Window Right"
-        },
-        {
-          "keys": "Super + Shift + UP",
-          "desc": "Resize Window Up"
-        },
-        {
-          "keys": "Super + Shift + DOWN",
-          "desc": "Resize Window Down"
         },
         {
           "keys": "Super + Ctrl + LEFT",
@@ -236,20 +223,32 @@
           "desc": "Swap Window Down"
         },
         {
-          "keys": "Super + LEFT",
-          "desc": "Focus Left"
+          "keys": "Super + Shift + LEFT",
+          "desc": "Resize Window Left"
         },
         {
-          "keys": "Super + RIGHT",
-          "desc": "Focus Right"
+          "keys": "Super + Shift + RIGHT",
+          "desc": "Resize Window Right"
         },
         {
-          "keys": "Super + UP",
-          "desc": "Focus Up"
+          "keys": "Super + Shift + UP",
+          "desc": "Resize Window Up"
         },
         {
-          "keys": "Super + DOWN",
-          "desc": "Focus Down"
+          "keys": "Super + Shift + DOWN",
+          "desc": "Resize Window Down"
+        },
+        {
+          "keys": "Super + Left Click",
+          "desc": "Move Window"
+        },
+        {
+          "keys": "Super + Right Click",
+          "desc": "Resize Window"
+        },
+        {
+          "keys": "Ctrl + Alt + DELETE",
+          "desc": "Exit Hyprland"
         }
       ]
     },
@@ -273,18 +272,17 @@
           "desc": "Previous Workspace"
         },
         {
-          "keys": "Super + U",
+          "keys": "Super + M",
           "desc": "Toggle Special Workspace"
         },
         {
-          "keys": "Super + Shift + U",
+          "keys": "Super + Shift + M",
           "desc": "Move to Special Workspace"
-        }
-      ]
-    },
-    {
-      "title": "WORKSPACE NAVIGATION",
-      "binds": [
+        },
+        {
+          "keys": "Super + Ctrl + M",
+          "desc": "Move Silently to Special Workspace"
+        },
         {
           "keys": "Super + 1",
           "desc": "Workspace 1"
