@@ -6,7 +6,7 @@
       "openai_compatible": "gemini-3.1-pro"
     },
     "apiKeys": {
-      "google": "AIzaSyD6auEIjMRqliXp85ifgRok1Daj1aZbtMc",
+      "google": "",
       "openai_compatible": "sk-tKWP-xtTe6QpL56G-k9v3mTbR3N97lX0M_7HYqQBpY8-Mm0hXT8MzmLLA6YMGQ9J"
     },
     "temperature": 0.7,
