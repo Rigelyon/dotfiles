@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 
-iconsDir="$HOME/.config/swaync/icons"
 scriptsDir="$HOME/.config/hypr/scripts"
 
 # Get Volume
@@ -16,24 +15,6 @@ get_volume() {
         echo "Muted"
     else
         echo "$volume %"
-    fi
-}
-
-# Get icons
-get_icon() {
-    local is_muted=$(wpctl get-volume @DEFAULT_AUDIO_SINK@ | grep -q MUTED && echo "true" || echo "false")
-    if [[ "$is_muted" == "true" ]]; then
-        echo "$iconsDir/volume-mute.png"
-        return
-    fi
-
-    local current=$(wpctl get-volume @DEFAULT_AUDIO_SINK@ | awk '{print int($2 * 100)}')
-    if [[ "$current" -le 30 ]]; then
-        echo "$iconsDir/volume-low.png"
-    elif [[ "$current" -le 60 ]]; then
-        echo "$iconsDir/volume-mid.png"
-    else
-        echo "$iconsDir/volume-high.png"
     fi
 }
 
@@ -75,17 +56,6 @@ toggle_mic() {
 	elif [ "$muted" == "true" ]; then
 		wpctl set-mute @DEFAULT_AUDIO_SOURCE@ 0
 	fi
-}
-
-# Get Mic Icon
-get_mic_icon() {
-    local muted=$(wpctl get-volume @DEFAULT_AUDIO_SOURCE@ | grep -q MUTED && echo "true" || echo "false")
-    local current=$(wpctl get-volume @DEFAULT_AUDIO_SOURCE@ | awk '{print int($2 * 100)}')
-    if [[ "$muted" == "true" || "$current" -eq "0" ]]; then
-        echo "$iconsDir/microphone-mute.png"
-    else
-        echo "$iconsDir/microphone.png"
-    fi
 }
 
 # Get Microphone Volume
