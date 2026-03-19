@@ -14,7 +14,7 @@
         "enableWindowsSearch": true,
         "iconMode": "tabler",
         "ignoreMouseInput": false,
-        "overviewLayer": false,
+        "overviewLayer": true,
         "pinnedApps": [
         ],
         "position": "center",
@@ -162,7 +162,7 @@
                     "id": "SystemMonitor",
                     "showCpuCores": false,
                     "showCpuFreq": false,
-                    "showCpuTemp": false,
+                    "showCpuTemp": true,
                     "showCpuUsage": true,
                     "showDiskAvailable": false,
                     "showDiskUsage": true,
@@ -246,11 +246,11 @@
             },
             {
                 "enabled": true,
-                "id": "audio-card"
+                "id": "brightness-card"
             },
             {
                 "enabled": true,
-                "id": "brightness-card"
+                "id": "audio-card"
             },
             {
                 "enabled": true,
@@ -335,7 +335,7 @@
         "colorizeIcons": false,
         "deadOpacity": 0.6,
         "displayMode": "auto_hide",
-        "dockType": "floating",
+        "dockType": "static",
         "enabled": true,
         "floatingRatio": 1.5,
         "groupApps": false,

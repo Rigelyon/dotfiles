@@ -40,12 +40,20 @@
           "desc": "Open Keybinds Cheatsheet"
         },
         {
+          "keys": "Super + V",
+          "desc": "Launch Clipboard"
+        },
+        {
           "keys": "Super + X",
-          "desc": "Scratchpad"
+          "desc": "Launch Scratchpad"
         },
         {
           "keys": "Super + SLASH",
           "desc": "Open AI Assistant"
+        },
+        {
+          "keys": "Super + Shift + SLASH",
+          "desc": "Clear AI Assistant Chat"
         },
         {
           "keys": "Super + Ctrl + Scroll Down",
@@ -78,7 +86,11 @@
         },
         {
           "keys": "Mute",
-          "desc": "Volume Mute"
+          "desc": "Volume Toggle"
+        },
+        {
+          "keys": "Mic Mute",
+          "desc": "Mic Toggle"
         },
         {
           "keys": "Bright Up",
@@ -167,12 +179,32 @@
           "desc": "Float All Windowss"
         },
         {
-          "keys": "Super + M",
+          "keys": "Super + Middle Click",
+          "desc": "Toggle Minimize Tray"
+        },
+        {
+          "keys": "Super + Ctrl + Middle Click",
           "desc": "Minimize Window"
         },
         {
-          "keys": "Super + Alt + M",
+          "keys": "Super + Ctrl + Alt + Middle Click",
           "desc": "Minimize All Windows"
+        },
+        {
+          "keys": "Super + Shift + Middle Click",
+          "desc": "Restore Minimized Window"
+        },
+        {
+          "keys": "Super + Shift + Alt + Middle Click",
+          "desc": "Restore All Minimized Windows"
+        },
+        {
+          "keys": "Alt + TAB",
+          "desc": "Cycle Next Window,"
+        },
+        {
+          "keys": "Alt + TAB",
+          "desc": "Bring Active Window"
         },
         {
           "keys": "Super + LEFT",
@@ -189,14 +221,6 @@
         {
           "keys": "Super + DOWN",
           "desc": "Focus Down"
-        },
-        {
-          "keys": "Alt + TAB",
-          "desc": "Cycle Next Window,"
-        },
-        {
-          "keys": "Alt + TAB",
-          "desc": "Bring Active Window"
         },
         {
           "keys": "Super + Ctrl + LEFT",
@@ -421,7 +445,7 @@
   "detectedCompositor": "hyprland",
   "niriConfigPath": "~/.config/niri/config.kdl",
   "hyprlandConfigPath": "~/.config/hypr/configs/keybinds.conf",
-  "modKeyVariable": "$mod",
+  "modKeyVariable": "$mainMod",
   "windowHeight": 850,
   "windowWidth": 1200,
   "columnCount": 2

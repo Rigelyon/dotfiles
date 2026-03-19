@@ -1,5 +1,5 @@
 dotfiles_report_*.txt
-micro/.config/micro/buffers/*
+micro/.config/micro/buffers*
 .qmlls.ini
 *.env
 .env

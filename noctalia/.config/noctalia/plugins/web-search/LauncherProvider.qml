@@ -14,38 +14,32 @@ Item {
     property var suggestions: []
     property string lastQuery: ""
 
-    readonly property var defaultEngine: {
-        "search": "https://www.google.com/search?q=",
-        "suggest": "https://suggestqueries.google.com/complete/search?client=chrome&q="
+    readonly property var cfg: pluginApi?.pluginSettings || ({})
+    readonly property var defaults: pluginApi?.manifest?.metadata?.defaultSettings || ({})
+
+    readonly property string engineName: cfg.search_engine ?? defaults.search_engine ?? "Google"
+    readonly property bool showSuggestions: cfg.show_suggestions ?? defaults.show_suggestions ?? true
+    readonly property int maxResults: cfg.max_results ?? defaults.max_results ?? 5
+
+    readonly property var engine: {
+        if (engineName === "DuckDuckGo") {
+            return { "search": "https://duckduckgo.com/?q=", "suggest": "https://duckduckgo.com/ac/?q=" };
+        } else if (engineName === "Bing") {
+            return { "search": "https://www.bing.com/search?q=", "suggest": "https://www.bing.com/osjson.aspx?query=" };
+        } else if (engineName === "Brave") {
+            return { "search": "https://search.brave.com/search?q=", "suggest": "https://search.brave.com/api/suggest?q=" };
+        } else if (engineName === "Yandex") {
+            return { "search": "https://yandex.com/search/?text=", "suggest": "https://suggest.yandex.com/suggest-ya.cgi?v=4&part=" };
+        } else {
+            return { "search": "https://www.google.com/search?q=", "suggest": "https://suggestqueries.google.com/complete/search?client=chrome&q=" };
+        }
     }
 
     function getResults(searchText) {
-        let engine = defaultEngine;
-        let engineName = "Google";
-        let showSuggestions = true;
-        let maxResults = 5;
         let results = [];
         let rawText = searchText.trim();
         let isCommand = rawText.startsWith(">web");
         let query = rawText;
-        
-        try {
-            if (pluginApi && pluginApi.pluginSettings) {
-                engineName = pluginApi.pluginSettings.search_engine ?? (pluginApi.manifest?.metadata?.defaultSettings?.search_engine || "Google");
-                showSuggestions = pluginApi.pluginSettings.show_suggestions ?? (pluginApi.manifest?.metadata?.defaultSettings?.show_suggestions ?? true);
-                maxResults = pluginApi.pluginSettings.max_results ?? (pluginApi.manifest?.metadata?.defaultSettings?.max_results ?? 5);
-
-                if (engineName === "DuckDuckGo") {
-                    engine = { "search": "https://duckduckgo.com/?q=", "suggest": "https://duckduckgo.com/ac/?q=" };
-                } else if (engineName === "Bing") {
-                    engine = { "search": "https://www.bing.com/search?q=", "suggest": "https://www.bing.com/osjson.aspx?query=" };
-                } else if (engineName === "Brave") {
-                    engine = { "search": "https://search.brave.com/search?q=", "suggest": "https://search.brave.com/api/suggest?q=" };
-                } else if (engineName === "Yandex") {
-                    engine = { "search": "https://yandex.com/search/?text=", "suggest": "https://suggest.yandex.com/suggest-ya.cgi?v=4&part=" };
-                }
-            }
-        } catch (e) { }
 
         if (isCommand) {
             query = rawText.slice(5).trim();
@@ -56,16 +50,16 @@ Item {
         
         if (isCommand && query === "") {
             return [{
-                "name": "Type Something...",
-                "description": "Search internet from " + engineName,
+                "name": pluginApi?.tr("launcher.typeSomething"),
+                "description": pluginApi?.tr("launcher.searchInternet", { engine: engineName }),
                 "icon": "search",
                 "isTablerIcon": true
             }];
         }
 
         results.push({
-            "name": "Search \"" + query + "\"",
-            "description": "Open in " + engineName,
+            "name": pluginApi?.tr("launcher.search", { query: query }),
+            "description": pluginApi?.tr("launcher.openIn", { engine: engineName }),
             "icon": "world",
             "isTablerIcon": true,
             "_score": isCommand ? 999 : -5,
@@ -87,7 +81,7 @@ Item {
                 let s = suggestions[i];
                 results.push({
                     "name": s,
-                    "description": "Suggestion " + engineName,
+                    "description": pluginApi?.tr("launcher.suggestion", { engine: engineName }),
                     "icon": "search",
                     "isTablerIcon": true,
                     "_score": isCommand ? (900 - i) : (-10 - i),
@@ -124,7 +118,7 @@ Item {
                             }
                         }
                     } catch (e) {
-                        console.log("WebSearch: JSON Parse error");
+                        Logger.e("WebSearch", "JSON Parse error");
                     }
                 }
             }
@@ -140,7 +134,7 @@ Item {
     function commands() {
         return [{
             "name": ">web",
-            "description": "Search something from the internet",
+            "description": pluginApi?.tr("launcher.command.description"),
             "icon": "world",
             "isTablerIcon": true,
             "onActivate": function() {

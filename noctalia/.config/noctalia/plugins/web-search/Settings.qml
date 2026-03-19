@@ -10,9 +10,9 @@ ColumnLayout {
     property var cfg: pluginApi?.pluginSettings || ({})
     property var defaults: pluginApi?.manifest?.metadata?.defaultSettings || ({})
 
-    property string valueSearchEngine: cfg.search_engine ?? defaults.search_engine
-    property bool valueShowSuggestions: cfg.show_suggestions ?? defaults.show_suggestions
-    property int valueMaxResults: cfg.max_results ?? defaults.max_results
+    property string valueSearchEngine: cfg.search_engine ?? defaults.search_engine ?? "Google"
+    property bool valueShowSuggestions: cfg.show_suggestions ?? defaults.show_suggestions ?? true
+    property int valueMaxResults: cfg.max_results ?? defaults.max_results ?? 5
 
     spacing: Style.marginL
 
@@ -26,8 +26,8 @@ ColumnLayout {
 
         NComboBox {
             Layout.fillWidth: true
-            label: "Search Engine"
-            description: "Default search engine to open when searching the web"
+            label: pluginApi?.tr("settings.engine.label")
+            description: pluginApi?.tr("settings.engine.description")
             model: ["Google", "DuckDuckGo", "Bing", "Brave", "Yandex"].map(function(n) {
                 return { key: n, name: n };
             })
@@ -36,35 +36,11 @@ ColumnLayout {
             onSelected: key => root.valueSearchEngine = key
         }
 
-        RowLayout {
-            Layout.fillWidth: true
-            spacing: Style.marginM
-
-            ColumnLayout {
-                Layout.fillWidth: true
-                spacing: Style.marginS
-
-                NText {
-                    text: "Show Search Suggestions"
-                    font.pointSize: Style.fontSizeL
-                    font.weight: Font.Medium
-                    color: Color.mOnSurface
-                    Layout.fillWidth: true
-                }
-                
-                NText {
-                    text: "Fetch real-time suggestions while typing"
-                    font.pointSize: Style.fontSizeS
-                    color: Color.mOnSurfaceVariant
-                    wrapMode: Text.WordWrap
-                    Layout.fillWidth: true
-                }
-            }
-
-            NToggle {
-                checked: root.valueShowSuggestions
-                onToggled: root.valueShowSuggestions = checked
-            }
+        NToggle {
+            label: pluginApi?.tr("settings.suggestions.label")
+            description: pluginApi?.tr("settings.suggestions.description")
+            checked: root.valueShowSuggestions
+            onToggled: root.valueShowSuggestions = checked
         }
     }
 
@@ -76,7 +52,7 @@ ColumnLayout {
             Layout.fillWidth: true
 
             NText {
-                text: "Maximum Results"
+                text: pluginApi?.tr("settings.maxResults.label")
                 font.pointSize: Style.fontSizeL
                 font.weight: Font.Medium
                 color: Color.mOnSurface
@@ -92,7 +68,7 @@ ColumnLayout {
         }
 
         NText {
-            text: "Limit the number of suggestions displayed"
+            text: pluginApi?.tr("settings.maxResults.description")
             font.pointSize: Style.fontSizeS
             color: Color.mOnSurfaceVariant
             wrapMode: Text.WordWrap
