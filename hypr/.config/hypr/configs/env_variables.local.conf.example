@@ -1,1 +1,2 @@
 env=NOCTALIA_AP_GOOGLE_API_KEY,enter-your-key-here
+env=GITHUB_TOKEN,enter-your-token-here
