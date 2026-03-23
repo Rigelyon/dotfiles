@@ -6,6 +6,11 @@
       "icon": "terminal-2"
     },
     {
+      "name": "System Entry",
+      "command": "gtk-launch system-entry",
+      "icon": "terminal-2"
+    },
+    {
       "name": "Pomodoro",
       "command": "qs -c noctalia-shell ipc call plugin:pomodoro toggle",
       "icon": "terminal-2"
