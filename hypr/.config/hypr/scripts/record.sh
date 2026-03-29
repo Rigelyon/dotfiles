@@ -42,26 +42,32 @@ stop_recording() {
     done
 
     if [ ! -f "$TMP_LATEST" ]; then
-        notify-send -a "Screenrecord" -u critical "Error" "Data file temporary tidak ditemukan."
+        notify-send -a "Screenrecord" -u critical "Error" "Temporary file not found."
         return 1
     fi
 
     FINAL_FILE=$(cat "$TMP_LATEST")
 
     if [ ! -f "$FINAL_FILE" ]; then
-        notify-send -a "Screenrecord" -u critical "Error" "File rekaman tidak ditemukan di $FINAL_FILE"
+        notify-send -a "Screenrecord" -u critical "Error" "Recording file not found in $FINAL_FILE"
         rm -f "$TMP_LATEST"
         return 1
     fi
+
+    wl-copy -t text/uri-list "file://$FINAL_FILE"
 
     SAVED_ACTION=$(notify-send -a "Screenrecord" \
         "Recording Saved" \
         "File: $(basename "$FINAL_FILE")" \
         -A "view=View" \
+        -A "copy=Copy" \
         -A "delete=Delete")
 
     if [ "$SAVED_ACTION" = "view" ]; then
         xdg-open "$FINAL_FILE"
+    elif [ "$SAVED_ACTION" = "copy" ]; then
+        wl-copy -t text/uri-list "file://$FINAL_FILE"
+        notify-send -a "Screenrecord" -u low "Copied" "Recording copied to clipboard."
     elif [ "$SAVED_ACTION" = "delete" ]; then
         rm -f "$FINAL_FILE"
         notify-send -a "Screenrecord" -u low "File Deleted" "The saved recording was deleted."

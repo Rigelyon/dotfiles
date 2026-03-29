@@ -41,11 +41,11 @@
         },
         {
           "keys": "Super + V",
-          "desc": "Launch Clipboard"
+          "desc": "Open Clipboard"
         },
         {
           "keys": "Super + X",
-          "desc": "Launch Scratchpad"
+          "desc": "Open Scratchpad"
         },
         {
           "keys": "Super + SLASH",
@@ -146,6 +146,10 @@
           "desc": "OCR Scan"
         },
         {
+          "keys": "Super + Shift + INSERT",
+          "desc": "QR Scan"
+        },
+        {
           "keys": "Super + D",
           "desc": "Toggle Annotation"
         }
@@ -160,11 +164,15 @@
         },
         {
           "keys": "Super + Shift + Q",
-          "desc": "Terminate Active Process"
+          "desc": "Force Close Active Window"
+        },
+        {
+          "keys": "Super + P",
+          "desc": "Pin Window"
         },
         {
           "keys": "Super + F",
-          "desc": "Fullscreen"
+          "desc": "Fullscreen Window"
         },
         {
           "keys": "Super + Shift + F",
@@ -289,11 +297,7 @@
       "binds": [
         {
           "keys": "Super + TAB",
-          "desc": "Next Workspace"
-        },
-        {
-          "keys": "Super + Shift + TAB",
-          "desc": "Previous Workspace"
+          "desc": "Toggle Workspace Overview"
         },
         {
           "keys": "Super + Scroll Down",
