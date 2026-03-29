@@ -40,12 +40,26 @@ while [[ $# -gt 0 ]]; do
     esac
 done
 
+SELECTOR_FILE="$HOME/.config/quickshell/region-selector.qml"
+
 if [ "$MODE" = "area" ]; then
-    geom=$(slurp)
-    if [ $? -ne 0 ]; then
+    rm -f /tmp/recording_region.txt
+
+    if [ -f "$SELECTOR_FILE" ]; then
+        quickshell --path "$SELECTOR_FILE" > /tmp/quickshell_overlay.log 2>&1
+    else
+        geom=$(slurp)
+        [ $? -ne 0 ] && { notify-send -a "Screenshot" -u low "Cancelled" "Area selection cancelled."; exit 1; }
+        echo "$geom" > /tmp/recording_region.txt
+    fi
+
+    if [ ! -f /tmp/recording_region.txt ]; then
         notify-send -a "Screenshot" -u low "Cancelled" "Area selection cancelled."
         exit 1
     fi
+
+    geom=$(cat /tmp/recording_region.txt)
+    rm -f /tmp/recording_region.txt
 
     TMP_FILE="/tmp/screenshot_$(date +%s).png"
     grim -g "$geom" "$TMP_FILE"
@@ -60,7 +74,7 @@ if [ "$MODE" = "area" ]; then
     ACTION=$(timeout "$((WAIT_TIME / 1000))" notify-send -a "Screenshot" \
         -i "$TMP_FILE" \
         "Screenshot Taken" \
-        "Saved to clipboard." \
+        "Copied to clipboard without saving to file" \
         -t "$WAIT_TIME" \
         -A "save=Save to file" \
         -A "view=View")

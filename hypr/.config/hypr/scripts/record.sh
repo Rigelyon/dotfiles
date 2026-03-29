@@ -4,6 +4,7 @@ SAVE_DIR="$HOME/Videos/Recordings"
 mkdir -p "$SAVE_DIR"
 
 TMP_LATEST="/tmp/recording_latest.txt"
+TMP_TIMER_PID="/tmp/recording_timer.pid"
 
 show_help() {
     cat << EOF
@@ -16,37 +17,24 @@ Options:
                         fullscreen  - Record full screen
                         area        - Record a specific area
                         active      - Record the active window
+  -s, --stop          Stop the current recording
   -h, --help          Show this help message
 EOF
 }
 
-MODE="fullscreen"
+stop_recording() {
+    if ! pgrep -x "wf-recorder" > /dev/null; then
+        return 1
+    fi
 
-while [[ $# -gt 0 ]]; do
-    case $1 in
-        -m|--mode)
-            MODE="$2"
-            shift 2
-            ;;
-        -t|--time)
-            MAX_TIME="$2"
-            shift 2
-            ;;
-        -h|--help)
-            show_help
-            exit 0
-            ;;
-        *)
-            echo "Unknown option: $1"
-            show_help
-            exit 1
-            ;;
-    esac
-done
+    if [ -f "$TMP_TIMER_PID" ]; then
+        TIMER_PID=$(cat "$TMP_TIMER_PID")
+        pkill -P "$TIMER_PID" 2>/dev/null || true
+        kill "$TIMER_PID" 2>/dev/null || true
+        rm -f "$TMP_TIMER_PID"
+    fi
 
-if pgrep -x "wf-recorder" > /dev/null; then
     pkill -INT -x wf-recorder
-    
     pkill -f "quickshell.*recording-overlay\.qml" || true
 
     while pgrep -x "wf-recorder" > /dev/null; do
@@ -55,7 +43,7 @@ if pgrep -x "wf-recorder" > /dev/null; then
 
     if [ ! -f "$TMP_LATEST" ]; then
         notify-send -a "Screenrecord" -u critical "Error" "Data file temporary tidak ditemukan."
-        exit 1
+        return 1
     fi
 
     FINAL_FILE=$(cat "$TMP_LATEST")
@@ -63,7 +51,7 @@ if pgrep -x "wf-recorder" > /dev/null; then
     if [ ! -f "$FINAL_FILE" ]; then
         notify-send -a "Screenrecord" -u critical "Error" "File rekaman tidak ditemukan di $FINAL_FILE"
         rm -f "$TMP_LATEST"
-        exit 1
+        return 1
     fi
 
     SAVED_ACTION=$(notify-send -a "Screenrecord" \
@@ -78,15 +66,55 @@ if pgrep -x "wf-recorder" > /dev/null; then
         rm -f "$FINAL_FILE"
         notify-send -a "Screenrecord" -u low "File Deleted" "The saved recording was deleted."
     fi
-    
+
     rm -f "$TMP_LATEST"
-    exit 0
+    return 0
+}
+
+MODE="fullscreen"
+DO_STOP=false
+
+while [[ $# -gt 0 ]]; do
+    case $1 in
+        -m|--mode)
+            MODE="$2"
+            shift 2
+            ;;
+        -t|--time)
+            MAX_TIME="$2"
+            shift 2
+            ;;
+        -s|--stop)
+            DO_STOP=true
+            shift
+            ;;
+        -h|--help)
+            show_help
+            exit 0
+            ;;
+        *)
+            echo "Unknown option: $1"
+            show_help
+            exit 1
+            ;;
+    esac
+done
+
+if [ "$DO_STOP" = true ]; then
+    stop_recording
+    exit $?
+fi
+
+if pgrep -x "wf-recorder" > /dev/null; then
+    stop_recording
+    exit $?
 fi
 
 FINAL_FILE="$SAVE_DIR/Recording_$(date +'%Y-%m-%d_%H-%M-%S').mp4"
 echo "$FINAL_FILE" > "$TMP_LATEST"
 
 QUICKSHELL_FILE="$HOME/.config/quickshell/recording-overlay.qml"
+SELECTOR_FILE="$HOME/.config/quickshell/region-selector.qml"
 
 case "$MODE" in
     fullscreen)
@@ -94,15 +122,26 @@ case "$MODE" in
         wf-recorder -f "$FINAL_FILE" &
         ;;
     area)
-        geom=$(slurp)
-        if [ $? -ne 0 ]; then
+        rm -f /tmp/recording_region.txt
+
+        if [ -f "$SELECTOR_FILE" ]; then
+            quickshell --path "$SELECTOR_FILE" > /tmp/quickshell_overlay.log 2>&1
+        else
+            geom=$(slurp)
+            [ $? -ne 0 ] && { notify-send -a "Screenrecord" -u low "Cancelled" "Area selection cancelled."; rm -f "$TMP_LATEST"; exit 1; }
+            echo "$geom" > /tmp/recording_region.txt
+        fi
+
+        if [ ! -f /tmp/recording_region.txt ]; then
             notify-send -a "Screenrecord" -u low "Cancelled" "Area selection cancelled."
             rm -f "$TMP_LATEST"
             exit 1
         fi
-        
+
+        geom=$(cat /tmp/recording_region.txt)
+        rm -f /tmp/recording_region.txt
         IFS=', x' read -r gx gy gw gh <<< "$geom"
-        
+
         if [ -f "$QUICKSHELL_FILE" ]; then
             RECORD_X=$gx RECORD_Y=$gy RECORD_W=$gw RECORD_H=$gh quickshell --path "$QUICKSHELL_FILE" > /tmp/quickshell_overlay.log 2>&1 &
         fi
@@ -141,7 +180,9 @@ if [ -n "$MAX_TIME" ] && [ "$MAX_TIME" -gt 0 ]; then
         sleep "$MAX_TIME"
         if pgrep -x "wf-recorder" > /dev/null; then
             notify-send -a "Screenrecord" -u critical "Time limit reached" "Recording automatically stopped after ${MAX_TIME}s"
-            "$0" &
+            "$0" --stop &
         fi
+        rm -f "$TMP_TIMER_PID"
     ) &
+    echo $! > "$TMP_TIMER_PID"
 fi
