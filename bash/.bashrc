@@ -26,3 +26,4 @@ unset rc
 eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 
 . "$HOME/.local/share/../bin/env"
+export PATH="/home/rigelyon/bin:$PATH"

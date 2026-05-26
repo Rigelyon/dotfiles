@@ -17,6 +17,8 @@ Options:
                         fullscreen  - Record full screen
                         area        - Record a specific area
                         active      - Record the active window
+  -a, --audio         Record system audio
+  -M, --mic           Record microphone audio
   -s, --stop          Stop the current recording
   -h, --help          Show this help message
 EOF
@@ -79,6 +81,8 @@ stop_recording() {
 
 MODE="fullscreen"
 DO_STOP=false
+RECORD_AUDIO=false
+RECORD_MIC=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
@@ -89,6 +93,14 @@ while [[ $# -gt 0 ]]; do
         -t|--time)
             MAX_TIME="$2"
             shift 2
+            ;;
+        -a|--audio)
+            RECORD_AUDIO=true
+            shift
+            ;;
+        -M|--mic)
+            RECORD_MIC=true
+            shift
             ;;
         -s|--stop)
             DO_STOP=true
@@ -119,13 +131,40 @@ fi
 FINAL_FILE="$SAVE_DIR/Recording_$(date +'%Y-%m-%d_%H-%M-%S').mp4"
 echo "$FINAL_FILE" > "$TMP_LATEST"
 
+AUDIO_ARGS=""
+if [ "$RECORD_AUDIO" = true ] && [ "$RECORD_MIC" = true ]; then
+    notify-send -a "Screenrecord" -u critical "Error" "Merekam system audio dan mic secara bersamaan tidak didukung saat ini."
+    rm -f "$TMP_LATEST"
+    exit 1
+elif [ "$RECORD_AUDIO" = true ]; then
+    if command -v wpctl >/dev/null 2>&1; then
+        SINK_NAME=$(wpctl inspect @DEFAULT_AUDIO_SINK@ | awk -F '"' '/node.name/ {print $2}')
+        if [ -n "$SINK_NAME" ]; then
+            AUDIO_ARGS="--audio=${SINK_NAME}.monitor"
+        else
+            AUDIO_ARGS="--audio"
+        fi
+    elif command -v pactl >/dev/null 2>&1; then
+        SINK_NAME=$(pactl get-default-sink)
+        if [ -n "$SINK_NAME" ]; then
+            AUDIO_ARGS="--audio=${SINK_NAME}.monitor"
+        else
+            AUDIO_ARGS="--audio"
+        fi
+    else
+        AUDIO_ARGS="--audio"
+    fi
+elif [ "$RECORD_MIC" = true ]; then
+    AUDIO_ARGS="--audio"
+fi
+
 QUICKSHELL_FILE="$HOME/.config/quickshell/recording-overlay.qml"
 SELECTOR_FILE="$HOME/.config/quickshell/region-selector.qml"
 
 case "$MODE" in
     fullscreen)
         notify-send -a "Screenrecord" -u low "Recording Started" "Fullscreen mode"
-        wf-recorder -f "$FINAL_FILE" &
+        wf-recorder $AUDIO_ARGS -f "$FINAL_FILE" &
         ;;
     area)
         rm -f /tmp/recording_region.txt
@@ -153,7 +192,7 @@ case "$MODE" in
         fi
 
         notify-send -a "Screenrecord" -u low "Recording Started" "Area mode"
-        wf-recorder -g "$geom" -f "$FINAL_FILE" &
+        wf-recorder $AUDIO_ARGS -g "$geom" -f "$FINAL_FILE" &
         ;;
     active)
         active_window=$(hyprctl activewindow -j)
@@ -171,7 +210,7 @@ case "$MODE" in
         fi
         
         notify-send -a "Screenrecord" -u low "Recording Started" "Active window mode"
-        wf-recorder -g "$geom" -f "$FINAL_FILE" &
+        wf-recorder $AUDIO_ARGS -g "$geom" -f "$FINAL_FILE" &
         ;;
     *)
         echo "Invalid mode: $MODE"

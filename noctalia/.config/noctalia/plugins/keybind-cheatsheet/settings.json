@@ -12,8 +12,8 @@
           "desc": "Open Terminal"
         },
         {
-          "keys": "Super + GRAVE",
-          "desc": "Toggle Dropdown Terminal"
+          "keys": "Super + Shift + T",
+          "desc": "Open Dropdown Terminal"
         },
         {
           "keys": "Super + E",
@@ -38,6 +38,10 @@
         {
           "keys": "Super + F1",
           "desc": "Open Keybinds Cheatsheet"
+        },
+        {
+          "keys": "Super + W",
+          "desc": "Change Wallpaper"
         },
         {
           "keys": "Super + V",
@@ -191,7 +195,7 @@
           "desc": "Toggle Minimize Tray"
         },
         {
-          "keys": "Super + Ctrl + Middle Click",
+          "keys": "Super + Ctrl + G",
           "desc": "Minimize Window"
         },
         {
@@ -308,84 +312,12 @@
           "desc": "Previous Workspace"
         },
         {
-          "keys": "Super + 1",
-          "desc": "Workspace 1"
+          "keys": "Super + [NUM]",
+          "desc": "Workspace [NUM]"
         },
         {
-          "keys": "Super + 2",
-          "desc": "Workspace 2"
-        },
-        {
-          "keys": "Super + 3",
-          "desc": "Workspace 3"
-        },
-        {
-          "keys": "Super + 4",
-          "desc": "Workspace 4"
-        },
-        {
-          "keys": "Super + 5",
-          "desc": "Workspace 5"
-        },
-        {
-          "keys": "Super + 6",
-          "desc": "Workspace 6"
-        },
-        {
-          "keys": "Super + 7",
-          "desc": "Workspace 7"
-        },
-        {
-          "keys": "Super + 8",
-          "desc": "Workspace 8"
-        },
-        {
-          "keys": "Super + 9",
-          "desc": "Workspace 9"
-        },
-        {
-          "keys": "Super + 0",
-          "desc": "Workspace 0"
-        },
-        {
-          "keys": "Super + Shift + 1",
-          "desc": "Move Window to Workspace 1"
-        },
-        {
-          "keys": "Super + Shift + 2",
-          "desc": "Move Window to Workspace 2"
-        },
-        {
-          "keys": "Super + Shift + 3",
-          "desc": "Move Window to Workspace 3"
-        },
-        {
-          "keys": "Super + Shift + 4",
-          "desc": "Move Window to Workspace 4"
-        },
-        {
-          "keys": "Super + Shift + 5",
-          "desc": "Move Window to Workspace 5"
-        },
-        {
-          "keys": "Super + Shift + 6",
-          "desc": "Move Window to Workspace 6"
-        },
-        {
-          "keys": "Super + Shift + 7",
-          "desc": "Move Window to Workspace 7"
-        },
-        {
-          "keys": "Super + Shift + 8",
-          "desc": "Move Window to Workspace 8"
-        },
-        {
-          "keys": "Super + Shift + 9",
-          "desc": "Move Window to Workspace 9"
-        },
-        {
-          "keys": "Super + Shift + 0",
-          "desc": "Move Window to Workspace 0"
+          "keys": "Super + Shift + NUM",
+          "desc": "Move Window to Workspace [NUM]"
         },
         {
           "keys": "Super + Shift + BRACKETRIGHT",
@@ -396,44 +328,8 @@
           "desc": "Move Window to Previous Workspace"
         },
         {
-          "keys": "Super + Ctrl + 1",
-          "desc": "Move Window Silently to Workspace 1"
-        },
-        {
-          "keys": "Super + Ctrl + 2",
-          "desc": "Move Window Silently to Workspace 2"
-        },
-        {
-          "keys": "Super + Ctrl + 3",
-          "desc": "Move Window Silently to Workspace 3"
-        },
-        {
-          "keys": "Super + Ctrl + 4",
-          "desc": "Move Window Silently to Workspace 4"
-        },
-        {
-          "keys": "Super + Ctrl + 5",
-          "desc": "Move Window Silently to Workspace 5"
-        },
-        {
-          "keys": "Super + Ctrl + 6",
-          "desc": "Move Window Silently to Workspace 6"
-        },
-        {
-          "keys": "Super + Ctrl + 7",
-          "desc": "Move Window Silently to Workspace 7"
-        },
-        {
-          "keys": "Super + Ctrl + 8",
-          "desc": "Move Window Silently to Workspace 8"
-        },
-        {
-          "keys": "Super + Ctrl + 9",
-          "desc": "Move Window Silently to Workspace 9"
-        },
-        {
-          "keys": "Super + Ctrl + 0",
-          "desc": "Move Window Silently to Workspace 0"
+          "keys": "Super + Ctrl + NUM",
+          "desc": "Move Window Silently to Workspace [NUM]"
         },
         {
           "keys": "Super + Ctrl + BRACKETRIGHT",
@@ -444,13 +340,251 @@
           "desc": "Move Window Silently to Previous Workspace"
         }
       ]
+    },
+    {
+      "title": "GENERAL TERMINAL (SHELL)",
+      "binds": [
+        {
+          "keys": "Ctrl + C",
+          "desc": "Interrupt/Cancel Process"
+        },
+        {
+          "keys": "Ctrl + D",
+          "desc": "Exit Terminal (Logout)"
+        },
+        {
+          "keys": "Ctrl + L",
+          "desc": "Clear Terminal Screen"
+        },
+        {
+          "keys": "Ctrl + Z",
+          "desc": "Suspend Process to Background"
+        },
+        {
+          "keys": "Ctrl + A",
+          "desc": "Go to Start of Line"
+        },
+        {
+          "keys": "Ctrl + E",
+          "desc": "Go to End of Line"
+        },
+        {
+          "keys": "Alt + B",
+          "desc": "Back One Word"
+        },
+        {
+          "keys": "Alt + F",
+          "desc": "Forward One Word"
+        },
+        {
+          "keys": "Ctrl + U",
+          "desc": "Delete to Start"
+        },
+        {
+          "keys": "Ctrl + K",
+          "desc": "Delete to End"
+        },
+        {
+          "keys": "Ctrl + W",
+          "desc": "Delete Word Before"
+        },
+        {
+          "keys": "Alt + D",
+          "desc": "Delete Word After"
+        },
+        {
+          "keys": "Ctrl + Y",
+          "desc": "Yank (Paste) Deleted Text"
+        },
+        {
+          "keys": "Ctrl + R",
+          "desc": "Search Command History"
+        },
+        {
+          "keys": "Ctrl + G",
+          "desc": "Exit Search Mode"
+        },
+        {
+          "keys": "Ctrl + P",
+          "desc": "Previous Command (Up)"
+        },
+        {
+          "keys": "Ctrl + N",
+          "desc": "Next Command (Down)"
+        }
+      ]
+    },
+    {
+      "title": "KITTY: SCROLLING",
+      "binds": [
+        {
+          "keys": "Shift + Ctrl + UP",
+          "desc": "Scroll Line Up"
+        },
+        {
+          "keys": "Shift + Ctrl + DOWN",
+          "desc": "Scroll Line Down"
+        },
+        {
+          "keys": "Shift + Ctrl + PAGE UP",
+          "desc": "Scroll Page Up"
+        },
+        {
+          "keys": "Shift + Ctrl + PAGE DOWN",
+          "desc": "Scroll Page Down"
+        },
+        {
+          "keys": "Shift + Ctrl + HOME",
+          "desc": "Scroll to Top"
+        },
+        {
+          "keys": "Shift + Ctrl + END",
+          "desc": "Scroll to Bottom"
+        }
+      ]
+    },
+    {
+      "title": "KITTY: TABS MANAGEMENT",
+      "binds": [
+        {
+          "keys": "Shift + Ctrl + T",
+          "desc": "New Tab"
+        },
+        {
+          "keys": "Shift + Ctrl + Q",
+          "desc": "Close Tab"
+        },
+        {
+          "keys": "Shift + Ctrl + RIGHT",
+          "desc": "Next Tab"
+        },
+        {
+          "keys": "Shift + Ctrl + LEFT",
+          "desc": "Previous Tab"
+        },
+        {
+          "keys": "Shift + Ctrl + PERIOD",
+          "desc": "Move Tab Forward"
+        },
+        {
+          "keys": "Shift + Ctrl + COMMA",
+          "desc": "Move Tab Backward"
+        },
+        {
+          "keys": "Shift + Ctrl + Alt + T",
+          "desc": "Set Tab Title"
+        }
+      ]
+    },
+    {
+      "title": "KITTY: PANE MANAGEMENT",
+      "binds": [
+        {
+          "keys": "Shift + Ctrl + ENTER",
+          "desc": "New Pane"
+        },
+        {
+          "keys": "Shift + Ctrl + W",
+          "desc": "Close Pane"
+        },
+        {
+          "keys": "Shift + Ctrl + BRACKETLEFT",
+          "desc": "Next Pane"
+        },
+        {
+          "keys": "Shift + Ctrl + BRACKETRIGHT",
+          "desc": "Previous Pane"
+        },
+        {
+          "keys": "Shift + Ctrl + F",
+          "desc": "Move Pane Forward"
+        },
+        {
+          "keys": "Shift + Ctrl + B",
+          "desc": "Move Pane Backward"
+        },
+        {
+          "keys": "Shift + Ctrl + GRAVE",
+          "desc": "Move Pane to Top"
+        },
+        {
+          "keys": "Shift + Ctrl + NUM",
+          "desc": "Focus Specific Pane"
+        }
+      ]
+    },
+    {
+      "title": "KITTY: OTHERS",
+      "binds": [
+        {
+          "keys": "Shift + Ctrl + C",
+          "desc": "Copy to clipboard"
+        },
+        {
+          "keys": "Shift + Ctrl + V",
+          "desc": "Paste from clipboard"
+        },
+        {
+          "keys": "Shift + Ctrl + S",
+          "desc": "Paste from selection"
+        },
+        {
+          "keys": "Shift + Ctrl + EQUAL",
+          "desc": "Increase font size"
+        },
+        {
+          "keys": "Shift + Ctrl + MINUS",
+          "desc": "Decrease font size"
+        },
+        {
+          "keys": "Shift + Ctrl + BACKSPACE",
+          "desc": "Restore font size"
+        },
+        {
+          "keys": "Shift + Ctrl + U",
+          "desc": "Input unicode character"
+        },
+        {
+          "keys": "Shift + Ctrl + E",
+          "desc": "Click URL with keyboard"
+        },
+        {
+          "keys": "Shift + Ctrl + DELETE",
+          "desc": "Reset the terminal"
+        },
+        {
+          "keys": "Shift + Ctrl + F5",
+          "desc": "Reload kitty.conf"
+        },
+        {
+          "keys": "Shift + Ctrl + F6",
+          "desc": "Debug kitty.conf"
+        },
+        {
+          "keys": "Shift + Ctrl + F2",
+          "desc": "Edit kitty config file"
+        },
+        {
+          "keys": "Shift + Ctrl + F1",
+          "desc": "View kitty docs in browser"
+        },
+        {
+          "keys": "Shift + Ctrl + ESCAPE",
+          "desc": "Open a kitty shell"
+        },
+        {
+          "keys": "Shift + Ctrl + O",
+          "desc": "Pass selection to program"
+        }
+      ]
     }
   ],
   "detectedCompositor": "hyprland",
-  "niriConfigPath": "~/.config/niri/config.kdl",
-  "hyprlandConfigPath": "~/.config/hypr/configs/keybinds.conf",
-  "modKeyVariable": "$mainMod",
+  "windowWidth": 1400,
   "windowHeight": 850,
-  "windowWidth": 1200,
-  "columnCount": 2
+  "autoHeight": true,
+  "columnCount": 3,
+  "modKeyVariable": "$mainMod",
+  "hyprlandConfigPath": "~/.config/hypr/configs/keybinds.conf",
+  "niriConfigPath": "~/.config/niri/config.kdl"
 }

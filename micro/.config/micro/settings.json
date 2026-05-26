@@ -1,3 +1,7 @@
 {
-    "colorscheme": "catppuccin-mocha-transparent"
+    "colorscheme": "catppuccin-mocha-transparent",
+
+    "pluginrepos": [
+    	"https://raw.githubusercontent.com/weebi/micro-preview/master/repo.json"
+    ]
 }

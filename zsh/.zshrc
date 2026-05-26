@@ -73,9 +73,13 @@ alias mc='micro'
 alias ttyclock='tty-clock -B -C 6'
 alias fetch='fastfetch'
 alias py='python3'
+alias warp='warp-cli status'
+alias warp-toggle='warp-cli status | grep -q "Connected" && (warp-cli disconnect && echo "Changed to disconnected") || (warp-cli connect && echo "Changed to connected")'
+alias zoom='QT_QUICK_CONTROLS_STYLE=Basic zoom'
 
 alias spotx-install='bash <(curl -sSL https://raw.githubusercontent.com/SpotX-Official/SpotX-Bash/main/spotx.sh)'
 alias lzp='DOCKER_HOST=unix://$(podman info -f "{{.Host.RemoteSocket.Path}}") lazydocker'
+alias start-ssh='sudo mkdir -p /run/sshd && sudo /usr/sbin/sshd -p 2424'
 
 
 # To enable change working directory when exiting yazi

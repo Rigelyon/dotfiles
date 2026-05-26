@@ -3,7 +3,7 @@
         "autoPasteClipboard": false,
         "clipboardWatchImageCommand": "wl-paste --type image --watch cliphist store",
         "clipboardWatchTextCommand": "wl-paste --type text --watch cliphist store",
-        "clipboardWrapText": true,
+        "clipboardWrapText": false,
         "customLaunchPrefix": "",
         "customLaunchPrefixEnabled": false,
         "density": "comfortable",
@@ -124,6 +124,7 @@
                     "maxWidth": 180,
                     "scrollingMode": "hover",
                     "showIcon": true,
+                    "showText": true,
                     "textColor": "none",
                     "useFixedWidth": false
                 }
@@ -164,7 +165,7 @@
                     "showCpuCores": false,
                     "showCpuFreq": false,
                     "showCpuTemp": true,
-                    "showCpuUsage": true,
+                    "showCpuUsage": false,
                     "showDiskAvailable": false,
                     "showDiskUsage": true,
                     "showDiskUsageAsPercent": false,
@@ -198,20 +199,6 @@
                     "id": "NotificationHistory",
                     "showUnreadBadge": true,
                     "unreadBadgeColor": "tertiary"
-                },
-                {
-                    "defaultSettings": {
-                        "colorHistory": [
-                        ],
-                        "installedLangs": [
-                            "eng"
-                        ],
-                        "paletteColors": [
-                        ],
-                        "selectedOcrLang": "eng",
-                        "transAvailable": false
-                    },
-                    "id": "plugin:screen-toolkit"
                 }
             ]
         }
@@ -241,12 +228,13 @@
     },
     "colorSchemes": {
         "darkMode": true,
-        "generationMethod": "rainbow",
+        "generationMethod": "tonal-spot",
         "manualSunrise": "06:30",
         "manualSunset": "18:30",
         "monitorForColors": "",
         "predefinedScheme": "Catppuccin",
         "schedulingMode": "off",
+        "syncGsettings": true,
         "useWallpaperColors": false
     },
     "controlCenter": {
@@ -321,7 +309,7 @@
     "desktopWidgets": {
         "enabled": true,
         "gridSnap": false,
-        "gridSnapScale": true,
+        "gridSnapScale": false,
         "monitorWidgets": [
             {
                 "name": "eDP-1",
@@ -426,6 +414,7 @@
         "showHibernateOnLockScreen": false,
         "showScreenCorners": false,
         "showSessionButtonsOnLockScreen": true,
+        "smoothScrollEnabled": true,
         "telemetryEnabled": true
     },
     "hooks": {
@@ -456,20 +445,21 @@
     },
     "location": {
         "analogClockInCalendar": true,
+        "autoLocate": false,
         "firstDayOfWeek": -1,
         "hideWeatherCityName": false,
         "hideWeatherTimezone": false,
-        "name": "Majenang",
+        "name": "Tasikmalaya",
         "showCalendarEvents": true,
         "showCalendarWeather": true,
         "showWeekNumberInCalendar": true,
         "use12hourFormat": false,
         "useFahrenheit": false,
         "weatherEnabled": true,
-        "weatherShowEffects": true
+        "weatherShowEffects": true,
+        "weatherTaliaMascotAlways": false
     },
     "network": {
-        "airplaneModeEnabled": false,
         "bluetoothAutoConnect": true,
         "bluetoothDetailsViewMode": "grid",
         "bluetoothHideUnnamedDevices": false,
@@ -486,7 +476,7 @@
         "forced": false,
         "manualSunrise": "06:30",
         "manualSunset": "18:30",
-        "nightTemp": "4515"
+        "nightTemp": "4665"
     },
     "noctaliaPerformance": {
         "disableDesktopWidgets": true,
@@ -515,10 +505,10 @@
             "normal": true
         },
         "sounds": {
-            "criticalSoundFile": "/home/rigelyon/.config/hypr/assets/notification-normal1.mp3",
+            "criticalSoundFile": "/home/rigelyon/.config/hypr/assets/notification-critical1.mp3",
             "enabled": true,
             "excludedApps": "discord,firefox,chrome,chromium,edge",
-            "lowSoundFile": "/home/rigelyon/.config/hypr/assets/notification-normal1.mp3",
+            "lowSoundFile": "/home/rigelyon/.config/hypr/assets/notification-low1.mp3",
             "normalSoundFile": "/home/rigelyon/.config/hypr/assets/notification-normal1.mp3",
             "separateSounds": true,
             "volume": 0.5
@@ -541,7 +531,7 @@
     },
     "plugins": {
         "autoUpdate": false,
-        "notifyUpdates": true
+        "notifyUpdates": false
     },
     "sessionMenu": {
         "countdownDuration": 10000,
@@ -700,22 +690,24 @@
         "enabled": true,
         "favorites": [
             {
+                "appearance": "dark",
                 "colorScheme": "Catppuccin",
                 "darkMode": true,
-                "generationMethod": "rainbow",
+                "generationMethod": "tonal-spot",
                 "paletteColors": [
                     "#cba6f7",
                     "#fab387",
                     "#94e2d5",
                     "#f38ba8"
                 ],
-                "path": "/home/rigelyon/Pictures/Wallpapers/wallpaperflare.com_wallpaper.jpg",
+                "path": "/home/rigelyon/Pictures/Wallpapers/Juffles_Ellen 121632599_p0 16 9 (Large).jpg",
                 "useWallpaperColors": false
             }
         ],
         "fillColor": "#000000",
         "fillMode": "crop",
         "hideWallpaperFilenames": true,
+        "linkLightAndDarkWallpapers": true,
         "monitorDirectories": [
         ],
         "overviewBlur": 0.4,

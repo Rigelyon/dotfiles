@@ -4,11 +4,6 @@
             "enabled": true,
             "name": "Noctalia Plugins",
             "url": "https://github.com/noctalia-dev/noctalia-plugins"
-        },
-        {
-            "enabled": false,
-            "name": "Rigelyon Plugins",
-            "url": "https://github.com/rigelyon/noctalia-plugins"
         }
     ],
     "states": {
@@ -24,7 +19,7 @@
             "enabled": true,
             "sourceUrl": "https://github.com/noctalia-dev/noctalia-plugins"
         },
-        "clipper": {
+        "cloudflare-warp": {
             "enabled": true,
             "sourceUrl": "https://github.com/noctalia-dev/noctalia-plugins"
         },
@@ -41,7 +36,7 @@
             "sourceUrl": "https://github.com/noctalia-dev/noctalia-plugins"
         },
         "dns-switcher": {
-            "enabled": false,
+            "enabled": true,
             "sourceUrl": "https://github.com/noctalia-dev/noctalia-plugins"
         },
         "fancy-audiovisualizer": {
@@ -60,12 +55,16 @@
             "enabled": true,
             "sourceUrl": "https://github.com/noctalia-dev/noctalia-plugins"
         },
-        "mpris-lyric": {
-            "enabled": false,
+        "mirror-mirror": {
+            "enabled": true,
+            "sourceUrl": "https://github.com/noctalia-dev/noctalia-plugins"
+        },
+        "music-search": {
+            "enabled": true,
             "sourceUrl": "https://github.com/noctalia-dev/noctalia-plugins"
         },
         "network-indicator": {
-            "enabled": false,
+            "enabled": true,
             "sourceUrl": "https://github.com/noctalia-dev/noctalia-plugins"
         },
         "notes-scratchpad": {
@@ -77,18 +76,6 @@
             "sourceUrl": "https://github.com/noctalia-dev/noctalia-plugins"
         },
         "pomodoro": {
-            "enabled": true,
-            "sourceUrl": "https://github.com/noctalia-dev/noctalia-plugins"
-        },
-        "screen-shot-and-record": {
-            "enabled": true,
-            "sourceUrl": "https://github.com/noctalia-dev/noctalia-plugins"
-        },
-        "screen-toolkit": {
-            "enabled": true,
-            "sourceUrl": "https://github.com/noctalia-dev/noctalia-plugins"
-        },
-        "sticky-notes": {
             "enabled": true,
             "sourceUrl": "https://github.com/noctalia-dev/noctalia-plugins"
         },
@@ -106,10 +93,6 @@
         },
         "unicode-picker": {
             "enabled": true,
-            "sourceUrl": "https://github.com/noctalia-dev/noctalia-plugins"
-        },
-        "video-wallpaper": {
-            "enabled": false,
             "sourceUrl": "https://github.com/noctalia-dev/noctalia-plugins"
         },
         "web-search": {
