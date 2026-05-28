@@ -239,14 +239,14 @@ case "$MODE" in
         if [ -f "$QUICKSHELL_FILE" ]; then
             RECORD_MODE="fullscreen" quickshell --path "$QUICKSHELL_FILE" > /tmp/quickshell_overlay.log 2>&1 &
         fi
-        notify-send -a "Screenrecord" -u low "Recording Started" "Fullscreen mode"
+        # notify-send -a "Screenrecord" -u low "Recording Started" "Fullscreen mode"
         wf-recorder $AUDIO_ARGS -f "$FINAL_FILE" &
         ;;
     area)
         rm -f /tmp/recording_region.txt
 
         if [ -f "$SELECTOR_FILE" ]; then
-            quickshell --path "$SELECTOR_FILE" > /tmp/quickshell_overlay.log 2>&1
+            SELECTOR_MODE="Screen Record" quickshell --path "$SELECTOR_FILE" > /tmp/quickshell_overlay.log 2>&1
         else
             geom=$(slurp)
             [ $? -ne 0 ] && { notify-send -a "Screenrecord" -u low "Cancelled" "Area selection cancelled."; rm -f "$TMP_LATEST"; exit 1; }
@@ -267,7 +267,7 @@ case "$MODE" in
             RECORD_X=$gx RECORD_Y=$gy RECORD_W=$gw RECORD_H=$gh quickshell --path "$QUICKSHELL_FILE" > /tmp/quickshell_overlay.log 2>&1 &
         fi
 
-        notify-send -a "Screenrecord" -u low "Recording Started" "Area mode"
+        # notify-send -a "Screenrecord" -u low "Recording Started" "Area mode"
         wf-recorder $AUDIO_ARGS -g "$geom" -f "$FINAL_FILE" &
         ;;
     active)
@@ -285,7 +285,7 @@ case "$MODE" in
             RECORD_X=$gx RECORD_Y=$gy RECORD_W=$gw RECORD_H=$gh quickshell --path "$QUICKSHELL_FILE" > /tmp/quickshell_overlay.log 2>&1 &
         fi
         
-        notify-send -a "Screenrecord" -u low "Recording Started" "Active window mode"
+        # notify-send -a "Screenrecord" -u low "Recording Started" "Active window mode"
         wf-recorder $AUDIO_ARGS -g "$geom" -f "$FINAL_FILE" &
         ;;
     *)

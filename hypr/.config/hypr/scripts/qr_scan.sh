@@ -6,7 +6,7 @@ REGION_FILE="/tmp/recording_region.txt"
 rm -f "$REGION_FILE"
 
 if [ -f "$SELECTOR_FILE" ]; then
-    quickshell --path "$SELECTOR_FILE" > /tmp/quickshell_overlay.log 2>&1
+    SELECTOR_MODE="QR Code Scan" quickshell --path "$SELECTOR_FILE" > /tmp/quickshell_overlay.log 2>&1
 else
     geom=$(slurp)
     if [ $? -ne 0 ]; then

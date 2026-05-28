@@ -46,7 +46,7 @@ if [ "$MODE" = "area" ]; then
     rm -f /tmp/recording_region.txt
 
     if [ -f "$SELECTOR_FILE" ]; then
-        quickshell --path "$SELECTOR_FILE" > /tmp/quickshell_overlay.log 2>&1
+        SELECTOR_MODE="Screenshot" quickshell --path "$SELECTOR_FILE" > /tmp/quickshell_overlay.log 2>&1
     else
         geom=$(slurp)
         [ $? -ne 0 ] && { notify-send -a "Screenshot" -u low "Cancelled" "Area selection cancelled."; exit 1; }

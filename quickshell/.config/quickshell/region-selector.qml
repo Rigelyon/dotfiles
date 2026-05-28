@@ -129,32 +129,38 @@ ShellRoot {
             }
         }
 
+
+
+        property string selectorMode: Quickshell.env("SELECTOR_MODE") || ""
+
         // ── Size Badge ───────────────────────────────────────
         Rectangle {
             visible: win.dragging && win.selW > 20
             opacity: win.fadeOpacity
             x: Math.max(4, Math.min(win.selX + win.selW / 2 - width / 2, win.width - width - 4))
-            y: win.selY > 36 ? win.selY - 34 : win.selY + win.selH + 8
-            width: selSizeLabel.implicitWidth + 16; height: 26; radius: 6
+            y: win.selY > height + 8 ? win.selY - height - 8 : win.selY + win.selH + 8
+            width: selSizeLabel.implicitWidth + 16; height: selSizeLabel.implicitHeight + 10; radius: 6
             color: Qt.rgba(0, 0, 0, 0.75); z: 10
             Text {
                 id: selSizeLabel; anchors.centerIn: parent
-                text: Math.round(win.selW) + " × " + Math.round(win.selH)
+                text: (win.selectorMode ? win.selectorMode + "\n" : "") + Math.round(win.selW) + " × " + Math.round(win.selH)
                 color: "white"; font.pixelSize: 12; font.family: "monospace"; font.weight: Font.Bold
+                horizontalAlignment: Text.AlignHCenter
             }
         }
 
-        // ── Cursor Coordinates ───────────────────────────────
+        // ── Cursor Coordinates & Mode ────────────────────────
         Rectangle {
             visible: !win.dragging; opacity: win.fadeOpacity; z: 10
-            width: coordLabel.implicitWidth + 14; height: 22; radius: 5
+            width: coordLabel.implicitWidth + 16; height: coordLabel.implicitHeight + 10; radius: 5
             color: Qt.rgba(0, 0, 0, 0.72)
             x: { var bx = win.mouseXPos + 18; return bx + width > win.width - 4 ? win.mouseXPos - width - 18 : bx }
             y: { var by = win.mouseYPos + 18; return by + height > win.height - 4 ? win.mouseYPos - height - 18 : by }
             Text {
                 id: coordLabel; anchors.centerIn: parent
-                text: Math.round(win.mouseXPos) + ", " + Math.round(win.mouseYPos)
+                text: (win.selectorMode ? win.selectorMode + "\n" : "") + Math.round(win.mouseXPos) + ", " + Math.round(win.mouseYPos)
                 color: Qt.rgba(1,1,1,0.85); font.pixelSize: 11; font.family: "monospace"
+                horizontalAlignment: Text.AlignHCenter
             }
         }
 

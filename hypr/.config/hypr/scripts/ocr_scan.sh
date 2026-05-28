@@ -7,7 +7,7 @@ WAIT_TIME=9000
 rm -f "$REGION_FILE"
 
 if [ -f "$SELECTOR_FILE" ]; then
-    quickshell --path "$SELECTOR_FILE" > /tmp/quickshell_overlay.log 2>&1
+    SELECTOR_MODE="OCR Scan" quickshell --path "$SELECTOR_FILE" > /tmp/quickshell_overlay.log 2>&1
 else
     geom=$(slurp)
     if [ $? -ne 0 ]; then
