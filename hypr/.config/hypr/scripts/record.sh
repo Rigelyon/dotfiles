@@ -5,6 +5,9 @@ mkdir -p "$SAVE_DIR"
 
 TMP_LATEST="/tmp/recording_latest.txt"
 TMP_TIMER_PID="/tmp/recording_timer.pid"
+TMP_AUDIO_MODULES="/tmp/recording_audio_modules.txt"
+TMP_MIC_STATE="/tmp/recording_mic_state.txt"
+
 
 show_help() {
     cat << EOF
@@ -13,12 +16,12 @@ Usage: $(basename "$0") [OPTIONS]
 Screen recording script using wf-recorder.
 
 Options:
-  -m, --mode <MODE>   Recording mode. Available modes:
+  -M, --mode <MODE>   Recording mode. Available modes:
                         fullscreen  - Record full screen
                         area        - Record a specific area
                         active      - Record the active window
   -a, --audio         Record system audio
-  -M, --mic           Record microphone audio
+  -m, --mic           Record microphone audio
   -s, --stop          Stop the current recording
   -h, --help          Show this help message
 EOF
@@ -42,6 +45,25 @@ stop_recording() {
     while pgrep -x "wf-recorder" > /dev/null; do
         sleep 0.1
     done
+
+    if [ -f "$TMP_AUDIO_MODULES" ]; then
+        while read -r module_id; do
+            if [ -n "$module_id" ]; then
+                pactl unload-module "$module_id" 2>/dev/null || true
+            fi
+        done < "$TMP_AUDIO_MODULES"
+        rm -f "$TMP_AUDIO_MODULES"
+    fi
+
+    if [ -f "$TMP_MIC_STATE" ]; then
+        MIC_STATE=$(cat "$TMP_MIC_STATE")
+        if [ "$MIC_STATE" = "muted" ]; then
+            wpctl set-mute @DEFAULT_AUDIO_SOURCE@ 1 2>/dev/null || true
+        else
+            wpctl set-mute @DEFAULT_AUDIO_SOURCE@ 0 2>/dev/null || true
+        fi
+        rm -f "$TMP_MIC_STATE"
+    fi
 
     if [ ! -f "$TMP_LATEST" ]; then
         notify-send -a "Screenrecord" -u critical "Error" "Temporary file not found."
@@ -86,7 +108,7 @@ RECORD_MIC=false
 
 while [[ $# -gt 0 ]]; do
     case $1 in
-        -m|--mode)
+        -M|--mode)
             MODE="$2"
             shift 2
             ;;
@@ -98,7 +120,7 @@ while [[ $# -gt 0 ]]; do
             RECORD_AUDIO=true
             shift
             ;;
-        -M|--mic)
+        -m|--mic)
             RECORD_MIC=true
             shift
             ;;
@@ -133,9 +155,53 @@ echo "$FINAL_FILE" > "$TMP_LATEST"
 
 AUDIO_ARGS=""
 if [ "$RECORD_AUDIO" = true ] && [ "$RECORD_MIC" = true ]; then
-    notify-send -a "Screenrecord" -u critical "Error" "Merekam system audio dan mic secara bersamaan tidak didukung saat ini."
-    rm -f "$TMP_LATEST"
-    exit 1
+    if ! command -v pactl >/dev/null 2>&1; then
+        notify-send -a "Screenrecord" -u critical "Error" "pactl (pulseaudio-utils) diperlukan untuk merekam audio dan mic bersamaan."
+        rm -f "$TMP_LATEST"
+        exit 1
+    fi
+
+    SINK_ID=$(pactl load-module module-null-sink sink_name=record-combined media.class=Audio/Sink sink_properties=device.description="Record_Combined_Sink")
+    if [ -z "$SINK_ID" ]; then
+        notify-send -a "Screenrecord" -u critical "Error" "Gagal membuat virtual audio sink."
+        rm -f "$TMP_LATEST"
+        exit 1
+    fi
+    echo "$SINK_ID" >> "$TMP_AUDIO_MODULES"
+
+    DEFAULT_SINK=""
+    if command -v wpctl >/dev/null 2>&1; then
+        DEFAULT_SINK=$(wpctl inspect @DEFAULT_AUDIO_SINK@ | awk -F '"' '/node.name/ {print $2}')
+    fi
+    if [ -z "$DEFAULT_SINK" ] && command -v pactl >/dev/null 2>&1; then
+        DEFAULT_SINK=$(pactl get-default-sink)
+    fi
+    if [ -z "$DEFAULT_SINK" ]; then
+        DEFAULT_SINK="@DEFAULT_AUDIO_SINK@"
+    fi
+
+    DEFAULT_SOURCE=""
+    if command -v wpctl >/dev/null 2>&1; then
+        DEFAULT_SOURCE=$(wpctl inspect @DEFAULT_AUDIO_SOURCE@ | awk -F '"' '/node.name/ {print $2}')
+    fi
+    if [ -z "$DEFAULT_SOURCE" ] && command -v pactl >/dev/null 2>&1; then
+        DEFAULT_SOURCE=$(pactl get-default-source)
+    fi
+    if [ -z "$DEFAULT_SOURCE" ]; then
+        DEFAULT_SOURCE="@DEFAULT_AUDIO_SOURCE@"
+    fi
+
+    LOOP_SYS_ID=$(pactl load-module module-loopback source="${DEFAULT_SINK}.monitor" sink="record-combined" latency_msec=100)
+    if [ -n "$LOOP_SYS_ID" ]; then
+        echo "$LOOP_SYS_ID" >> "$TMP_AUDIO_MODULES"
+    fi
+
+    LOOP_MIC_ID=$(pactl load-module module-loopback source="${DEFAULT_SOURCE}" sink="record-combined" latency_msec=100)
+    if [ -n "$LOOP_MIC_ID" ]; then
+        echo "$LOOP_MIC_ID" >> "$TMP_AUDIO_MODULES"
+    fi
+
+    AUDIO_ARGS="--audio=record-combined.monitor"
 elif [ "$RECORD_AUDIO" = true ]; then
     if command -v wpctl >/dev/null 2>&1; then
         SINK_NAME=$(wpctl inspect @DEFAULT_AUDIO_SINK@ | awk -F '"' '/node.name/ {print $2}')
@@ -161,8 +227,18 @@ fi
 QUICKSHELL_FILE="$HOME/.config/quickshell/recording-overlay.qml"
 SELECTOR_FILE="$HOME/.config/quickshell/region-selector.qml"
 
+if wpctl get-volume @DEFAULT_AUDIO_SOURCE@ | grep -q '\[MUTED\]'; then
+    echo "muted" > "$TMP_MIC_STATE"
+else
+    echo "unmuted" > "$TMP_MIC_STATE"
+fi
+wpctl set-mute @DEFAULT_AUDIO_SOURCE@ 1 2>/dev/null || true
+
 case "$MODE" in
     fullscreen)
+        if [ -f "$QUICKSHELL_FILE" ]; then
+            RECORD_MODE="fullscreen" quickshell --path "$QUICKSHELL_FILE" > /tmp/quickshell_overlay.log 2>&1 &
+        fi
         notify-send -a "Screenrecord" -u low "Recording Started" "Fullscreen mode"
         wf-recorder $AUDIO_ARGS -f "$FINAL_FILE" &
         ;;

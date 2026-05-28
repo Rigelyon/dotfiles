@@ -10,8 +10,10 @@ ShellRoot {
     property int reqY: parseInt(Quickshell.env("RECORD_Y")) || 0
     property int reqW: parseInt(Quickshell.env("RECORD_W")) || 200
     property int reqH: parseInt(Quickshell.env("RECORD_H")) || 200
+    property string recordMode: Quickshell.env("RECORD_MODE") || "area"
 
     property int _elapsed: 0
+    property bool isMicMuted: true
 
     function formatTime(secs) {
         var m = Math.floor(secs / 60)
@@ -31,12 +33,22 @@ ShellRoot {
 
     Process { id: stopProc }
 
+    Process { id: toggleMicProc }
+
+    function toggleMic() {
+        shell.isMicMuted = !shell.isMicMuted
+        toggleMicProc.exec({command: ["bash", "-c", "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"]})
+    }
+
     // ── Timers ────────────────────────────────────────────────
 
     Timer {
         id: elapsedTimer
         interval: 1000; repeat: true; running: true
-        onTriggered: shell._elapsed++
+        onTriggered: {
+            shell._elapsed++
+            micStatusProc.exec()
+        }
     }
 
     PanelWindow {
@@ -49,10 +61,13 @@ ShellRoot {
         exclusiveZone: -1
         color: "transparent"
 
-        mask: Region { item: btnAnchor }
+        mask: Region {
+            item: shell.recordMode === "fullscreen" ? fullscreenPill : btnAnchor
+        }
 
         // ── GLSL Shader Dimming ──────────────────────────────
         ShaderEffect {
+            visible: shell.recordMode !== "fullscreen"
             anchors.fill: parent; z: 0
             property vector4d selectionRect: Qt.vector4d(shell.reqX, shell.reqY, shell.reqW, shell.reqH)
             property real dimOpacity: 0.65
@@ -64,6 +79,7 @@ ShellRoot {
 
         // ── Red Recording Border ─────────────────────────────
         Rectangle {
+            visible: shell.recordMode !== "fullscreen"
             x: shell.reqX - 2; y: shell.reqY - 2
             width: shell.reqW + 4; height: shell.reqH + 4
             color: "transparent"; border.color: "#FF4444"; border.width: 2
@@ -72,7 +88,7 @@ ShellRoot {
 
         // ── Corner + Mid-edge Handles ────────────────────────
         Repeater {
-            model: (shell.reqW > 30 && shell.reqH > 30) ? 8 : 0
+            model: (shell.recordMode !== "fullscreen" && shell.reqW > 30 && shell.reqH > 30) ? 8 : 0
             delegate: Rectangle {
                 z: 2; width: 7; height: 7; radius: 1; color: "white"
                 border.color: Qt.rgba(0,0,0,0.55); border.width: 1
@@ -87,7 +103,7 @@ ShellRoot {
         // ── Size Badge ───────────────────────────────────────
         Rectangle {
             id: sizeBadge
-            visible: shell.reqW > 20; z: 11
+            visible: shell.recordMode !== "fullscreen" && shell.reqW > 20; z: 11
             x: Math.max(4, Math.min(shell.reqX + shell.reqW / 2 - width / 2, overlayWindow.width - width - 4))
             y: {
                 if (btnAnchor.placedAbove) {
@@ -108,6 +124,7 @@ ShellRoot {
         // ── Control Group (REC indicator + Stop button) ──────
         Item {
             id: btnAnchor; z: 10
+            visible: shell.recordMode !== "fullscreen"
 
             readonly property real grpW: controlCol.implicitWidth + 2
             readonly property real grpH: controlCol.implicitHeight + 2
@@ -173,6 +190,27 @@ ShellRoot {
                     }
                 }
 
+                // ── Mic Toggle Button ──────────────────────
+                Rectangle {
+                    anchors.horizontalCenter: parent.horizontalCenter
+                    height: 34; radius: 4; width: 34
+                    color: micMouseArea.containsMouse ? Qt.rgba(1, 1, 1, 0.15) : '#25252f'
+                    border.color: Qt.rgba(1, 1, 1, 0.12); border.width: 1
+                    
+                    Text {
+                        anchors.centerIn: parent
+                        text: shell.isMicMuted ? "󰍭" : "󰍬"
+                        color: shell.isMicMuted ? "#AAAAAA" : "#44FF44"
+                        font.pixelSize: 16
+                    }
+                    
+                    MouseArea {
+                        id: micMouseArea; anchors.fill: parent; hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: shell.toggleMic()
+                    }
+                }
+
                 // ── Stop Button ──────────────────────────
                 Rectangle {
                     anchors.horizontalCenter: parent.horizontalCenter
@@ -195,6 +233,143 @@ ShellRoot {
                     }
                     MouseArea {
                         id: stopBtn; anchors.fill: parent; hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: shell.stopRecording()
+                    }
+                }
+            }
+        }
+
+        // ── Fullscreen Control Pill ──────────────────────────
+        Rectangle {
+            id: fullscreenPill
+            visible: shell.recordMode === "fullscreen"
+            z: 10
+
+            x: overlayWindow.width / 2 - width / 2
+            y: 8
+
+            width: pillRow.implicitWidth + 24
+            height: 36
+            radius: 18
+
+            color: Qt.rgba(0.08, 0.08, 0.1, 0.85) // Sleek dark glassmorphism
+            border.color: Qt.rgba(1, 1, 1, 0.12)
+            border.width: 1
+
+            // Drag handler covering the entire pill background
+            MouseArea {
+                anchors.fill: parent
+                hoverEnabled: true
+                cursorShape: containsMouse ? (pressed ? Qt.ClosedHandCursor : Qt.OpenHandCursor) : Qt.ArrowCursor
+
+                drag.target: fullscreenPill
+                drag.minimumX: 0
+                drag.maximumX: overlayWindow.width - parent.width
+                drag.minimumY: 0
+                drag.maximumY: overlayWindow.height - parent.height
+            }
+
+            Row {
+                id: pillRow
+                anchors.centerIn: parent
+                spacing: 12
+
+                // Blinking red dot + timer
+                Row {
+                    spacing: 6
+                    anchors.verticalCenter: parent.verticalCenter
+
+                    Rectangle {
+                        width: 8; height: 8; radius: 4; color: "#FF4444"
+                        anchors.verticalCenter: parent.verticalCenter
+                        SequentialAnimation on opacity {
+                            running: true; loops: Animation.Infinite
+                            NumberAnimation { to: 0.25; duration: 600 }
+                            NumberAnimation { to: 1.0; duration: 600 }
+                        }
+                    }
+
+                    Text {
+                        text: "REC " + shell.formatTime(shell._elapsed)
+                        color: "white"
+                        font.weight: Font.Bold
+                        font.pixelSize: 12
+                        font.family: "monospace"
+                        anchors.verticalCenter: parent.verticalCenter
+                    }
+                }
+
+                // Vertical Separator
+                Rectangle {
+                    width: 1; height: 16
+                    color: Qt.rgba(1, 1, 1, 0.15)
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+
+                // Mic Button
+                Rectangle {
+                    height: 24; width: 24; radius: 12
+                    color: fullscreenMicMouseArea.containsMouse ? Qt.rgba(1, 1, 1, 0.15) : Qt.rgba(1, 1, 1, 0.08)
+                    anchors.verticalCenter: parent.verticalCenter
+                    
+                    Behavior on color { ColorAnimation { duration: 150 } }
+                    
+                    Text {
+                        anchors.centerIn: parent
+                        text: shell.isMicMuted ? "󰍭" : "󰍬"
+                        color: shell.isMicMuted ? "#AAAAAA" : "#44FF44"
+                        font.pixelSize: 13
+                    }
+                    
+                    MouseArea {
+                        id: fullscreenMicMouseArea; anchors.fill: parent; hoverEnabled: true
+                        cursorShape: Qt.PointingHandCursor
+                        onClicked: shell.toggleMic()
+                    }
+                }
+
+                // Vertical Separator
+                Rectangle {
+                    width: 1; height: 16
+                    color: Qt.rgba(1, 1, 1, 0.15)
+                    anchors.verticalCenter: parent.verticalCenter
+                }
+
+                // Stop Button
+                Rectangle {
+                    height: 24
+                    radius: 12
+                    width: stopLabel.implicitWidth + 24
+                    color: stopMouseArea.containsMouse ? "#FF4444" : Qt.rgba(1, 1, 1, 0.08)
+                    anchors.verticalCenter: parent.verticalCenter
+
+                    Behavior on color { ColorAnimation { duration: 150 } }
+
+                    Row {
+                        id: stopLabel
+                        anchors.centerIn: parent
+                        spacing: 6
+
+                        Rectangle {
+                            width: 8; height: 8; radius: 1
+                            color: stopMouseArea.containsMouse ? "white" : "#FF4444"
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+
+                        Text {
+                            text: "Stop"
+                            color: "white"
+                            font.weight: Font.Bold
+                            font.pixelSize: 11
+                            anchors.verticalCenter: parent.verticalCenter
+                        }
+                    }
+
+                    MouseArea {
+                        id: stopMouseArea
+                        anchors.fill: parent
+                        hoverEnabled: true
                         cursorShape: Qt.PointingHandCursor
                         onClicked: shell.stopRecording()
                     }
