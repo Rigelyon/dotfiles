@@ -82,10 +82,11 @@ if [ "$MODE" = "area" ]; then
     if [ "$ACTION" = "save" ]; then
         FINAL_FILE="$SAVE_DIR/Screenshot_$(date +'%Y-%m-%d_%H-%M-%S').png"
         cp "$TMP_FILE" "$FINAL_FILE"
-        SAVED_ACTION=$(notify-send -a "Screenshot" \
+        SAVED_ACTION=$(timeout 300 notify-send -a "Screenshot" \
             -i "$FINAL_FILE" \
             "Screenshot Saved" \
             "File: $(basename "$FINAL_FILE")" \
+            -t "$WAIT_TIME" \
             -A "view=View" \
             -A "delete=Delete")
         if [ "$SAVED_ACTION" = "view" ]; then
@@ -132,10 +133,11 @@ fi
 
 wl-copy < "$FINAL_FILE"
 
-ACTION=$(notify-send -a "Screenshot" \
+ACTION=$(timeout 300 notify-send -a "Screenshot" \
     -i "$FINAL_FILE" \
     "Screenshot Saved" \
     "File: $(basename "$FINAL_FILE")" \
+    -t "$WAIT_TIME" \
     -A "view=View" \
     -A "delete=Delete")
 

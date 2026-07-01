@@ -27,3 +27,7 @@ eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
 
 . "$HOME/.local/share/../bin/env"
 export PATH="/home/rigelyon/bin:$PATH"
+
+
+# Added by Antigravity CLI installer
+export PATH="/home/rigelyon/.local/bin:$PATH"

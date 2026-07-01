@@ -35,6 +35,19 @@ ShellRoot {
 
     Process { id: toggleMicProc }
 
+    Process {
+        id: micStatusProc
+        command: ["bash", "-c", "wpctl get-volume @DEFAULT_AUDIO_SOURCE@"]
+        stdout: StdioCollector {
+            id: micStatusCollector
+            onStreamFinished: {
+                shell.isMicMuted = micStatusCollector.text.includes("[MUTED]")
+            }
+        }
+    }
+
+    Component.onCompleted: micStatusProc.running = true
+
     function toggleMic() {
         shell.isMicMuted = !shell.isMicMuted
         toggleMicProc.exec({command: ["bash", "-c", "wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle"]})
@@ -47,7 +60,7 @@ ShellRoot {
         interval: 1000; repeat: true; running: true
         onTriggered: {
             shell._elapsed++
-            micStatusProc.exec()
+            micStatusProc.running = true
         }
     }
 

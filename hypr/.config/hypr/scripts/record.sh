@@ -8,6 +8,30 @@ TMP_TIMER_PID="/tmp/recording_timer.pid"
 TMP_AUDIO_MODULES="/tmp/recording_audio_modules.txt"
 TMP_MIC_STATE="/tmp/recording_mic_state.txt"
 
+cleanup() {
+    if ! pgrep -x "wf-recorder" > /dev/null; then
+        if [ -f "$TMP_AUDIO_MODULES" ]; then
+            while read -r module_id; do
+                if [ -n "$module_id" ]; then
+                    pactl unload-module "$module_id" 2>/dev/null || true
+                fi
+            done < "$TMP_AUDIO_MODULES"
+            rm -f "$TMP_AUDIO_MODULES"
+        fi
+
+        if [ -f "$TMP_MIC_STATE" ]; then
+            MIC_STATE=$(cat "$TMP_MIC_STATE")
+            if [ "$MIC_STATE" = "muted" ]; then
+                wpctl set-mute @DEFAULT_AUDIO_SOURCE@ 1 2>/dev/null || true
+            else
+                wpctl set-mute @DEFAULT_AUDIO_SOURCE@ 0 2>/dev/null || true
+            fi
+            rm -f "$TMP_MIC_STATE"
+        fi
+        rm -f "$TMP_LATEST"
+    fi
+}
+trap cleanup EXIT
 
 show_help() {
     cat << EOF
@@ -80,9 +104,10 @@ stop_recording() {
 
     wl-copy -t text/uri-list "file://$FINAL_FILE"
 
-    SAVED_ACTION=$(notify-send -a "Screenrecord" \
+    SAVED_ACTION=$(timeout 300 notify-send -a "Screenrecord" \
         "Recording Saved" \
         "File: $(basename "$FINAL_FILE")" \
+        -t 10000 \
         -A "view=View" \
         -A "copy=Copy" \
         -A "delete=Delete")

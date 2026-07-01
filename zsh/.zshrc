@@ -1,10 +1,14 @@
-eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
-
-# If you come from bash you might have to change your $PATH.
+## --- 1. Environment & Path ---
 # export PATH=$HOME/bin:/usr/local/bin:$PATH
+export PATH="/usr/local/bin:/usr/local/sbin:~/bin:$PATH" 
+export PATH="$HOME/.local/bin:$PATH"
+export PATH="$PATH:/opt/nvim-linux64/bin"
 
+export "MICRO_TRUECOLOR=1"
+export STARSHIP_CONFIG="$HOME/.config/starship/starship.toml"
+
+## --- 2. Oh-My-Zsh ---
 export ZSH="$HOME/.oh-my-zsh"
-
 # ZSH_THEME="powerlevel10k/powerlevel10k"
 
 plugins=( 
@@ -17,24 +21,7 @@ plugins=(
 source $ZSH/oh-my-zsh.sh
 export ZSH_COMPDUMP=$ZSH/cache/.zcompdump-$HOST
 
-export PATH="$PATH:/opt/nvim-linux64/bin"
-
-export PATH="/usr/local/bin:/usr/local/sbin:~/bin:$PATH" 
-export PATH="$HOME/.local/bin:$PATH"
-
-export "MICRO_TRUECOLOR=1"
-export STARSHIP_CONFIG="$HOME/.config/starship/starship.toml"
-
-# check the dnf plugins commands here
-# https://github.com/ohmyzsh/ohmyzsh/tree/master/plugins/dnf
-
-
-# fastfetch. Will be disabled if above colorscript was chosen to install
-# fastfetch -c $HOME/.config/fastfetch/config-compact.jsonc
-
-# Set-up FZF key bindings (CTRL R for fuzzy history finder)
-source <(fzf --zsh)
-
+## --- 3. History ---
 HISTFILE=~/.zsh_history
 HISTSIZE=10000
 SAVEHIST=$HISTSIZE
@@ -47,42 +34,53 @@ setopt hist_save_no_dups
 setopt hist_ignore_dups
 setopt hist_find_no_dups
 
-# Completion styling
+## --- 4. Completion Styling ---
 zstyle ':completion:*' matcher-list 'm:{a-z}={A-Za-z}'
 zstyle ':completion:*' list-colors "${(s.:.)LS_COLORS}"
 zstyle ':completion:*' menu no
 
-# Enable walk exit cd
-function lk {
-  cd "$(walk "$@")"
-}
+## --- 5. Tool Initializations ---
+eval "$(/home/linuxbrew/.linuxbrew/bin/brew shellenv)"
+source <(fzf --zsh)
+eval "$(zoxide init --cmd cd zsh)"
+eval "$(starship init zsh)"
+. "$HOME/.local/share/../bin/env"
 
-# Set-up icons for files/directories in terminal using lsd
+# fastfetch -c $HOME/.config/fastfetch/config-compact.jsonc
+
+## --- 6. Aliases ---
 alias ls='lsd'
 alias l='ls -l'
 alias la='ls -a'
 alias lla='ls -la'
 alias lt='ls --tree'
+alias cat='bat'
+alias curl='curlie'
+
+alias mc='micro'
+alias edit='micro'
+alias py='python3'
+alias sp='thoth'
+alias note='toney'
+alias fetch='fastfetch'
+
+alias ttyclock='tty-clock -B -C 6'
+alias zoom='QT_QUICK_CONTROLS_STYLE=Basic zoom'
+
 alias lk='lk --icons'
 alias lf='lk --icons --fuzzy'
 
-# Set-up aliases
-alias cat='bat'
-alias curl='curlie'
-alias mc='micro'
-alias ttyclock='tty-clock -B -C 6'
-alias fetch='fastfetch'
-alias py='python3'
-alias warp='warp-cli status'
-alias warp-toggle='warp-cli status | grep -q "Connected" && (warp-cli disconnect && echo "Changed to disconnected") || (warp-cli connect && echo "Changed to connected")'
-alias zoom='QT_QUICK_CONTROLS_STYLE=Basic zoom'
-
-alias spotx-install='bash <(curl -sSL https://raw.githubusercontent.com/SpotX-Official/SpotX-Bash/main/spotx.sh)'
 alias lzp='DOCKER_HOST=unix://$(podman info -f "{{.Host.RemoteSocket.Path}}") lazydocker'
+alias spotx-install='bash <(curl -sSL https://raw.githubusercontent.com/SpotX-Official/SpotX-Bash/main/spotx.sh)'
 alias start-ssh='sudo mkdir -p /run/sshd && sudo /usr/sbin/sshd -p 2424'
 
+## --- 7. Functions ---
+# Walk dir exit
+function lk {
+  cd "$(walk "$@")"
+}
 
-# To enable change working directory when exiting yazi
+# Yazi dir exit
 function yy() {
 	local tmp="$(mktemp -t "yazi-cwd.XXXXXX")"
 	yazi "$@" --cwd-file="$tmp"
@@ -92,9 +90,16 @@ function yy() {
 	rm -f -- "$tmp"
 }
 
-eval "$(zoxide init --cmd cd zsh)"
-eval "$(starship init zsh)"
+# Warp toggle switch
+warp() {
+    if [ "$1" = "toggle" ]; then
+        warp-cli status | grep -q "Connected" && (warp-cli disconnect && echo "Changed to disconnected") || (warp-cli connect && echo "Changed to connected")
+    else
+        warp-cli status
+    fi
+}
 
+## --- 8. Transient Prompt Hooks ---
 autoload -Uz add-zsh-hook
 add-zsh-hook precmd transient-prompt-precmd
 
@@ -102,10 +107,7 @@ TRANSIENT_PROMPT="${PROMPT// prompt / prompt --profile transient }"
 TRANSIENT_RPROMPT="${PROMPT// prompt / prompt --profile rtransient }"
 
 function transient-prompt-precmd {
-    # Fix ctrl+c behavior
     TRAPINT() { transient-prompt; return $(( 128 + $1 )) }
-
-    # Save transient prompt
     SAVED_PROMPT="$(eval "printf '%s' \"${TRANSIENT_PROMPT}\"")"
     SAVED_RPROMPT="$(eval "printf '%s' \"${TRANSIENT_RPROMPT}\"")"
 }
@@ -114,8 +116,9 @@ autoload -Uz add-zle-hook-widget
 add-zle-hook-widget zle-line-finish transient-prompt
 
 function transient-prompt() {
-    # Use saved transient prompt
     PROMPT="$SAVED_PROMPT" RPROMPT="$SAVED_RPROMPT" zle .reset-prompt
 }
 
-. "$HOME/.local/share/../bin/env"
+
+# Added by Antigravity CLI installer
+export PATH="/home/rigelyon/.local/bin:$PATH"

@@ -75,7 +75,7 @@ else
 ..."
     fi
 
-    ACTION=$(timeout "$((WAIT_TIME / 1000))" notify-send -a "OCR Scan" \
+    ACTION=$(timeout 300 notify-send -a "OCR Scan" \
         "Text Extracted" \
         "Copied to clipboard.\n\n<i>${PREVIEW}</i>" \
         -t "$WAIT_TIME" \
