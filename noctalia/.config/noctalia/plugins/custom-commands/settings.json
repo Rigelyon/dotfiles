@@ -39,11 +39,6 @@
       "name": "Wallpaper",
       "command": "qs -c noctalia-shell ipc call wallpaper toggle",
       "icon": "terminal-2"
-    },
-    {
-      "name": "MimeApp",
-      "command": "qs -c noctalia-shell ipc call plugin:mimeapp-gui openPanel",
-      "icon": "terminal-2"
     }
   ]
 }

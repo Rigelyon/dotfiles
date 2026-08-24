@@ -126,6 +126,7 @@ stop_recording() {
     return 0
 }
 
+ENCODER_ARGS="-c libx264 -p preset=ultrafast -p crf=24 -x yuv420p"
 MODE="fullscreen"
 DO_STOP=false
 RECORD_AUDIO=false
@@ -249,6 +250,10 @@ elif [ "$RECORD_MIC" = true ]; then
     AUDIO_ARGS="--audio"
 fi
 
+if [ -n "$AUDIO_ARGS" ]; then
+    AUDIO_ARGS="$AUDIO_ARGS -C aac"
+fi
+
 QUICKSHELL_FILE="$HOME/.config/quickshell/recording-overlay.qml"
 SELECTOR_FILE="$HOME/.config/quickshell/region-selector.qml"
 
@@ -265,7 +270,7 @@ case "$MODE" in
             RECORD_MODE="fullscreen" quickshell --path "$QUICKSHELL_FILE" > /tmp/quickshell_overlay.log 2>&1 &
         fi
         # notify-send -a "Screenrecord" -u low "Recording Started" "Fullscreen mode"
-        wf-recorder $AUDIO_ARGS -f "$FINAL_FILE" &
+        wf-recorder $AUDIO_ARGS $ENCODER_ARGS -f "$FINAL_FILE" &
         ;;
     area)
         rm -f /tmp/recording_region.txt
@@ -293,7 +298,7 @@ case "$MODE" in
         fi
 
         # notify-send -a "Screenrecord" -u low "Recording Started" "Area mode"
-        wf-recorder $AUDIO_ARGS -g "$geom" -f "$FINAL_FILE" &
+        wf-recorder $AUDIO_ARGS $ENCODER_ARGS -g "$geom" -f "$FINAL_FILE" &
         ;;
     active)
         active_window=$(hyprctl activewindow -j)
@@ -311,7 +316,7 @@ case "$MODE" in
         fi
         
         # notify-send -a "Screenrecord" -u low "Recording Started" "Active window mode"
-        wf-recorder $AUDIO_ARGS -g "$geom" -f "$FINAL_FILE" &
+        wf-recorder $AUDIO_ARGS $ENCODER_ARGS -g "$geom" -f "$FINAL_FILE" &
         ;;
     *)
         echo "Invalid mode: $MODE"

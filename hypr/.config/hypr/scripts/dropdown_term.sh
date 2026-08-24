@@ -2,14 +2,13 @@
 
 CLASS="dropdown_term"
 
-if hyprctl clients -j | jq -e ".[] | select(.class == \"$CLASS\")" > /dev/null; then
-    ACTIVE_CLASS=$(hyprctl activewindow -j | jq -r '.class')
-    
-    if [ "$ACTIVE_CLASS" == "$CLASS" ]; then
-        hyprctl dispatch killactive ""
+if hyprctl clients | grep -i -q "class: ${CLASS}"; then
+    ACTIVE_CLASS=$(hyprctl activewindow | grep -i "class:" | awk '{print $2}')
+    if [ "$ACTIVE_CLASS" = "$CLASS" ]; then
+        hyprctl dispatch 'hl.dsp.window.close()'
     else
-        hyprctl dispatch focuswindow class:"$CLASS"
+        hyprctl dispatch "hl.dsp.window.focus({ class = \"${CLASS}\" })"
     fi
 else
-    hyprctl dispatch exec "$TERMINAL --class $CLASS"
+    kitty --class "${CLASS}" &
 fi

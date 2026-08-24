@@ -1,0 +1,4 @@
+---@module 'hl'
+
+hl.env("NOCTALIA_AP_GOOGLE_API_KEY", "ENTER_YOUR_KEY_HERE")
+hl.env("WOKWI_CLI_TOKEN", "ENTER_YOUR_TOKEN_HERE")

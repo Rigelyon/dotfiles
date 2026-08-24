@@ -1,3 +1,4 @@
+
 ## --- 1. Environment & Path ---
 # export PATH=$HOME/bin:/usr/local/bin:$PATH
 export PATH="/usr/local/bin:/usr/local/sbin:~/bin:$PATH" 
@@ -54,14 +55,15 @@ alias l='ls -l'
 alias la='ls -a'
 alias lla='ls -la'
 alias lt='ls --tree'
-alias cat='bat'
+# alias cat='bat'
 alias curl='curlie'
+alias ssh='kitty +kitten ssh'
 
 alias mc='micro'
 alias edit='micro'
 alias py='python3'
 alias sp='thoth'
-alias note='toney'
+alias note=''
 alias fetch='fastfetch'
 
 alias ttyclock='tty-clock -B -C 6'
@@ -122,3 +124,17 @@ function transient-prompt() {
 
 # Added by Antigravity CLI installer
 export PATH="/home/rigelyon/.local/bin:$PATH"
+
+# pnpm
+export PNPM_HOME="/home/rigelyon/.local/share/pnpm"
+case ":$PATH:" in
+  *":$PNPM_HOME/bin:"*) ;;
+  *) export PATH="$PNPM_HOME/bin:$PATH" ;;
+esac
+# pnpm end
+
+# Generated for envman. Do not edit.
+[ -s "$HOME/.config/envman/load.sh" ] && source "$HOME/.config/envman/load.sh"
+
+# opencode
+export PATH=/home/rigelyon/.opencode/bin:$PATH

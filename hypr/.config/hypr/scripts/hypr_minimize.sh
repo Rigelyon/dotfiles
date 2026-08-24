@@ -10,6 +10,7 @@ FOCUS_ON_RESTORE=false
 EXCLUDE_FILTER="(waybar|dunst|mako)"
 
 if ! command -v jq &> /dev/null; then
+    notify-send "Hypr Minimize" "Error: jq is not installed"
     exit 1
 fi
 
@@ -17,6 +18,17 @@ touch "$STACK_FILE"
 
 window_exists() {
     hyprctl clients -j | jq -e ".[] | select(.address == \"$1\")" > /dev/null
+}
+
+# Helper: dispatch using Lua dispatcher syntax (required for Hyprland 0.55+ with Lua config)
+dispatch_move_to_ws() {
+    local ws="$1"
+    local addr="$2"
+    if [[ -n "$addr" ]]; then
+        hyprctl dispatch "hl.dsp.window.move({ workspace = \"$ws\", address = \"$addr\", follow = false})"
+    else
+        hyprctl dispatch "hl.dsp.window.move({ workspace = \"$ws\", follow = false })"
+    fi
 }
 
 (
@@ -37,16 +49,18 @@ window_exists() {
                 addrs=$(hyprctl clients -j | jq -r ".[] | select(.workspace.id == $active_ws_id) | select(.class | test(\"$EXCLUDE_FILTER\") | not) | .address")
 
                 if [[ -n "$addrs" && "$addrs" != "null" ]]; then
-                    batch_cmd=""
                     while read -r a; do
                         echo "$a" >> "$STACK_FILE"
-                        batch_cmd+="dispatch movetoworkspacesilent $SPECIAL_WS,address:$a; "
+                        dispatch_move_to_ws "$SPECIAL_WS" "$a"
                     done <<< "$addrs"
-                    hyprctl --batch "$batch_cmd"
                 fi
             else
                 echo "$addr" >> "$STACK_FILE"
-                hyprctl dispatch movetoworkspacesilent "$SPECIAL_WS,address:$addr"
+                out=$(dispatch_move_to_ws "$SPECIAL_WS" 2>&1)
+                echo "$out" > "$HOME/.config/hypr/scripts/minimize_error.log"
+                if [[ -n "$out" && "$out" != "ok" ]]; then
+                    notify-send "Hypr Minimize" "Error logged"
+                fi
             fi
             ;;
 
@@ -66,18 +80,16 @@ window_exists() {
             fi
 
             if [[ "$2" == "--all" ]]; then
-                batch_cmd=""
                 while read -r addr; do
                     if [[ -n "$addr" ]] && window_exists "$addr"; then
-                        batch_cmd+="dispatch movetoworkspacesilent $target_ws,address:$addr; "
+                        dispatch_move_to_ws "$target_ws" "$addr"
                     fi
                 done < "$STACK_FILE"
-                hyprctl --batch "$batch_cmd"
                 > "$STACK_FILE"
             else
                 if [[ "$win_ws_name" == "$SPECIAL_WS" && "$focused_addr" != "null" ]]; then
                     sed -i "/$focused_addr/d" "$STACK_FILE"
-                    hyprctl dispatch movetoworkspacesilent "$target_ws,address:$focused_addr"
+                    dispatch_move_to_ws "$target_ws" "$focused_addr"
                 else
                     restored=false
                     while [ -s "$STACK_FILE" ]; do
@@ -85,7 +97,7 @@ window_exists() {
                         sed -i '$d' "$STACK_FILE"
 
                         if [[ -n "$addr" ]] && window_exists "$addr"; then
-                            hyprctl dispatch movetoworkspacesilent "$target_ws,address:$addr"
+                            dispatch_move_to_ws "$target_ws" "$addr"
                             restored=true
                             break
                         fi
@@ -99,7 +111,7 @@ window_exists() {
             ;;
 
         "toggle")
-            hyprctl dispatch togglespecialworkspace "$SPECIAL_NAME"
+            hyprctl dispatch 'hl.dsp.workspace.toggle_special("minimize")'
             ;;
     esac
 

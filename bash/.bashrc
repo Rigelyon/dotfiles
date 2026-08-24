@@ -31,3 +31,6 @@ export PATH="/home/rigelyon/bin:$PATH"
 
 # Added by Antigravity CLI installer
 export PATH="/home/rigelyon/.local/bin:$PATH"
+
+# Generated for envman. Do not edit.
+[ -s "$HOME/.config/envman/load.sh" ] && source "$HOME/.config/envman/load.sh"
