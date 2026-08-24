@@ -596,12 +596,12 @@ add_new_config() {
     while true; do
         echo
         echo "Examples:"
-        echo "  .config/yazi             → $pkg_name/.config/yazi/"
+        echo "  (Press Enter)            → .config/$pkg_name/"
         echo "  .bashrc                  → $pkg_name/.bashrc"
         echo "  .config/tmux/tmux.conf   → $pkg_name/.config/tmux/tmux.conf"
         echo
-        read -rp "Path relative to \$HOME: " rel_path
-        [[ -z "$rel_path" ]]      && { log_error "Cannot be empty.";     continue; }
+        read -rp "Path relative to \$HOME (default: .config/$pkg_name): " rel_path
+        rel_path="${rel_path:-.config/$pkg_name}"
         [[ "$rel_path" =~ ^[/~] ]] && { log_error "No / or ~ prefix.";  continue; }
         break
     done
