@@ -1,4 +1,3 @@
-# [flavor]
-# dark = "catppuccin-mocha"
-
-# dim = true
+[flavor]
+dark = "catppuccin-mocha"
+light = "noctalia"

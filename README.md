@@ -74,38 +74,6 @@ You will be presented with a menu:
 - **GNU Stow**: Must be installed (`sudo dnf install stow` or equivalent).
 - **Bash**: The script is written in Bash.
 
-## Dependencies
-
-These dotfiles only checks these following packages. For the installation, use [bazzite-hyprland](https://github.com/Rigelyon/bazzite-hyprland).
-
-Package to check:
-
-- **bash**
-- **bat**
-- **btop**
-- **fastfetch**
-- **fd**
-- **fzf**
-- **git**
-- **hypr**
-- **hypr** (Hyprland)
-- **kitty**
-- **lazygit**
-- **lsd**
-- **micro**
-- **mpv**
-- **noctalia**
-- **nvim** (Neovim)
-- **quickshell**
-- **ripgrep**
-- **rofi**
-- **starship**
-- **swaync**
-- **vlc**
-- **wlogout**
-- **yazi**
-- **zoxide**
-- **zsh**
 
 ### Tips
 - Ensure there are no conflicting files in the target location if you want a clean install, or use the **Backup** option in the script.

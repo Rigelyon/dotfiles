@@ -1,1305 +1,980 @@
 #!/bin/bash
+# setup.sh — Dotfiles manager using GNU Stow
+# https://github.com/Rigelyon/dotfiles
+set -uo pipefail
 
-RED='\033[0;31m'
-GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
-BLUE='\033[0;34m'
-NC='\033[0m' # No Color
+# ──────────────────────────────────────────────
+# Constants
+# ──────────────────────────────────────────────
 
-BACKUP_SUFFIX=".dotfiles-backup"
+readonly VERSION="2.0.0"
+readonly BACKUP_SUFFIX=".dotfiles-backup"
+readonly DOTFILES_DIR="$(readlink -f "$(dirname "${BASH_SOURCE[0]}")")"
+readonly LOCK_FILE="/tmp/dotfiles-setup-$(id -u).lock"
 
+# Colors (disabled when piped / not a terminal)
+if [[ -t 1 ]]; then
+    readonly RED=$'\033[0;31m' GREEN=$'\033[0;32m' YELLOW=$'\033[0;33m'
+    readonly BLUE=$'\033[0;34m' BOLD=$'\033[1m' DIM=$'\033[2m' NC=$'\033[0m'
+else
+    readonly RED='' GREEN='' YELLOW='' BLUE='' BOLD='' DIM='' NC=''
+fi
+
+# Directories that are safe to exist in $HOME (not treated as stow conflicts)
+readonly SAFE_DIRS=("." ".config" ".local" ".local/share" ".local/bin"
+                    ".local/state" ".cache" ".ssh" ".gnupg" "bin")
+
+# ──────────────────────────────────────────────
+# Mutable State
+# ──────────────────────────────────────────────
+
+REPORT=()
+DRY_RUN=0
 GLOBAL_CONFLICT_ACTION=""
-GLOBAL_INSTALL_ACTION=""
+GLOBAL_LINK_ACTION=""
 GLOBAL_RESTOW_ACTION=""
 GLOBAL_RESTORE_ACTION=""
-DOTFILES_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-cd "$DOTFILES_DIR" || exit 1
+
+# ──────────────────────────────────────────────
+# Utilities
+# ──────────────────────────────────────────────
+
+log_info()    { printf "%s%s%s\n" "$BLUE"   "$*" "$NC"; }
+log_success() { printf "%s%s%s\n" "$GREEN"  "$*" "$NC"; }
+log_warn()    { printf "%s%s%s\n" "$YELLOW" "$*" "$NC"; }
+log_error()   { printf "%s%s%s\n" "$RED"    "$*" "$NC" >&2; }
+
+add_report() { REPORT+=("$1"); }
+
+command_exists() { command -v "$1" >/dev/null 2>&1; }
+
+resolve_path() { readlink -f "$1" 2>/dev/null || printf '%s' "$1"; }
+
+is_safe_dir() {
+    local rel_path="$1"
+    local w
+    for w in "${SAFE_DIRS[@]}"; do
+        [[ "$rel_path" == "$w" ]] && return 0
+    done
+    return 1
+}
 
 print_header() {
-    clear
-    echo -e "${BLUE}"
-    cat << "EOF"
-    ____       __  _____ __
-   / __ \____ / /_/ __(_) /__  _____
-  / / / / __ \/ __/ /_/ / / _ \/ ___/
- / /_/ / /_/ / /_/ __/ / /  __(__  )
-/_____/\____/\__/_/ /_/_/\___/____/
-    Setup Script
-EOF
-    echo -e "${NC}"
+    printf "%s" "$BLUE"
+    cat <<'BANNER'
+     ____       __  _____ __
+    / __ \____ / /_/ __(_) /__  _____
+   / / / / __ \/ __/ /_/ / / _ \/ ___/
+  / /_/ / /_/ / /_/ __/ / /  __(__  )
+ /_____/\____/\__/_/ /_/_/\___/____/
+BANNER
+    printf "     Setup Script v%s\n%s\n" "$VERSION" "$NC"
 }
 
-command_exists() {
-    command -v "$1" >/dev/null 2>&1
-}
-REPORT=()
+# ──────────────────────────────────────────────
+# Lock & Cleanup
+# ──────────────────────────────────────────────
 
-add_report() {
-    REPORT+=("$1")
+cleanup() {
+    rm -f "$LOCK_FILE"
+    find "$DOTFILES_DIR" -maxdepth 1 \( -name '*.tmp' -o -name '*.new' \) -delete 2>/dev/null || true
+    printf "\n%sInterrupted. Cleaned up.%s\n" "$YELLOW" "$NC"
+    exit 130
 }
 
-declare -A PACKAGE_MAP
-read_dependencies() {
-    local config_file="$DOTFILES_DIR/dependencies.conf"
-    if [ -f "$config_file" ]; then
-        while IFS=':' read -r pkg cmd; do
-            [[ "$pkg" =~ ^#.*$ ]] && continue
-            [[ -z "$pkg" ]] && continue
-            pkg=$(echo "$pkg" | xargs)
-            cmd=$(echo "$cmd" | xargs)
-            PACKAGE_MAP["$pkg"]="$cmd"
-        done < "$config_file"
-    else
-        echo -e "${YELLOW}Warning: dependencies.conf not found. Using default package names as commands.${NC}"
+acquire_lock() {
+    if [[ -f "$LOCK_FILE" ]]; then
+        local pid
+        pid="$(cat "$LOCK_FILE" 2>/dev/null || true)"
+        if [[ -n "$pid" ]] && kill -0 "$pid" 2>/dev/null; then
+            log_error "Another instance is running (PID $pid). Exiting."
+            exit 1
+        fi
+        rm -f "$LOCK_FILE"
     fi
+    printf '%s' $$ > "$LOCK_FILE"
+    trap cleanup INT TERM
 }
 
-check_installed_packages() {
-    echo -e "${YELLOW}Checking installed packages...${NC}"
-    
-    PACKAGE_MAP=()
-    read_dependencies
-    
-    add_report ""
-    
-    local -A all_packages
-    
-    for pkg in "${!PACKAGE_MAP[@]}"; do
-        all_packages["$pkg"]=1
-    done
-    
-    for pkg in */ ; do
-        pkg=${pkg%/}
-        if [[ "$pkg" == "setup.sh" || "$pkg" == "README.md" || "$pkg" == "LICENSE" || "$pkg" == ".git" || "$pkg" == "dependencies.conf" ]]; then
-            continue
-        fi
-        all_packages["$pkg"]=1
-    done
-    
-    IFS=$'\n' sorted_packages=($(sort <<<"${!all_packages[*]}"))
-    unset IFS
-
-    local config_packages=()
-    local dep_only_packages=()
-
-    for pkg in "${sorted_packages[@]}"; do
-        if [ -d "$DOTFILES_DIR/$pkg" ]; then
-            config_packages+=("$pkg")
-        else
-            dep_only_packages+=("$pkg")
-        fi
-    done
-
-    # Packages with configs
-    echo -e "${BLUE}── Packages with Configs ──${NC}"
-    printf "%-30s %-20s %-10s\n" "Package" "Command" "Status"
-    printf "%-30s %-20s %-10s\n" "-------" "-------" "------"
-
-    for pkg in "${config_packages[@]}"; do
-        cmd_check="${PACKAGE_MAP[$pkg]}"
-        
-        if [ -z "$cmd_check" ] && [ -z "${PACKAGE_MAP[$pkg]+exists}" ]; then
-             cmd_check="$pkg"
-        fi
-
-        if [ -z "$cmd_check" ] && [ "${PACKAGE_MAP[$pkg]+exists}" ]; then
-            printf "%-30s %-20s %-10s\n" "$pkg" "(none)" "UNKNOWN"
-            add_report "UNKNOWN: $pkg (no command specified)"
-            continue
-        fi
-
-        if command_exists "$cmd_check"; then
-            printf "${GREEN}%-30s %-20s %-10s${NC}\n" "$pkg" "$cmd_check" "INSTALLED"
-            add_report "OK: $pkg ($cmd_check installed)"
-        else
-            printf "${RED}%-30s %-20s %-10s${NC}\n" "$pkg" "$cmd_check" "MISSING"
-            add_report "MISSING: $pkg ($cmd_check not found)"
-        fi
-    done
-    echo ""
-
-    # Dependencies only (no config directory)
-    if [ ${#dep_only_packages[@]} -gt 0 ]; then
-        echo -e "${BLUE}── Dependencies Only (no config) ──${NC}"
-        printf "%-30s %-20s %-10s\n" "Package" "Command" "Status"
-        printf "%-30s %-20s %-10s\n" "-------" "-------" "------"
-
-        for pkg in "${dep_only_packages[@]}"; do
-            cmd_check="${PACKAGE_MAP[$pkg]}"
-            
-            if [ -z "$cmd_check" ] && [ -z "${PACKAGE_MAP[$pkg]+exists}" ]; then
-                 cmd_check="$pkg"
-            fi
-
-            if [ -z "$cmd_check" ] && [ "${PACKAGE_MAP[$pkg]+exists}" ]; then
-                printf "%-30s %-20s %-10s\n" "$pkg" "(none)" "UNKNOWN"
-                add_report "UNKNOWN: $pkg (no command specified)"
-                continue
-            fi
-
-            if command_exists "$cmd_check"; then
-                printf "${GREEN}%-30s %-20s %-10s${NC}\n" "$pkg" "$cmd_check" "INSTALLED"
-                add_report "OK: $pkg ($cmd_check installed)"
-            else
-                printf "${RED}%-30s %-20s %-10s${NC}\n" "$pkg" "$cmd_check" "MISSING"
-                add_report "MISSING: $pkg ($cmd_check not found)"
-            fi
-        done
-        echo ""
-    fi
+release_lock() {
+    rm -f "$LOCK_FILE"
+    trap - INT TERM
 }
 
-check_linked_configs() {
-    echo -e "${YELLOW}Checking linked configs...${NC}"
+# ──────────────────────────────────────────────
+# Package Helpers
+# ──────────────────────────────────────────────
 
-    printf "%-30s %-15s %-15s %-10s\n" "Package" "Linked" "Total" "Status"
-    printf "%-30s %-15s %-15s %-10s\n" "-------" "------" "-----" "------"
-
-    add_report ""
-
-    for pkg in */ ; do
-        pkg=${pkg%/}
-        if [[ "$pkg" == "setup.sh" || "$pkg" == "README.md" || "$pkg" == "LICENSE" || "$pkg" == ".git" ]]; then
-            continue
-        fi
-
-        local pkg_dir="$DOTFILES_DIR/$pkg"
-        local linked=0
-        local total=0
-
-        while IFS= read -r file; do
-            total=$((total+1))
-            local rel_path="${file#$pkg_dir/}"
-            local target_path="$HOME/$rel_path"
-
-            local real_target
-            real_target=$(resolve_path "$target_path")
-            local real_source
-            real_source=$(resolve_path "$file")
-
-            if [ "$real_target" == "$real_source" ]; then
-                linked=$((linked+1))
-            fi
-        done < <(find "$pkg_dir" -type f)
-
-        local status
-        if [ "$total" -eq 0 ]; then
-            status="EMPTY"
-        elif [ "$linked" -eq "$total" ]; then
-            status="LINKED"
-        elif [ "$linked" -gt 0 ]; then
-            status="PARTIAL"
-        else
-            status="NOT LINKED"
-        fi
-
-        local color="$NC"
-        if [ "$status" == "LINKED" ]; then
-            color="$GREEN"
-        elif [ "$status" == "PARTIAL" ]; then
-            color="$YELLOW"
-        elif [ "$status" == "NOT LINKED" ]; then
-            color="$RED"
-        fi
-
-        printf "${color}%-30s %-15s %-15s %-10s${NC}\n" "$pkg" "$linked" "$total" "$status"
-        add_report "LINK: $pkg ($linked/$total - $status)"
+# Print sorted stow-package directory names (one per line)
+get_package_dirs() {
+    local dirs=()
+    for d in "$DOTFILES_DIR"/*/; do
+        [[ -d "$d" ]] || continue
+        local name
+        name="$(basename "$d")"
+        [[ "$name" == ".git" ]] && continue
+        dirs+=("$name")
     done
-    echo ""
+    printf '%s\n' "${dirs[@]}" | sort
 }
 
-init_submodules() {
-    echo -e "${YELLOW}Checking git submodules...${NC}"
-    
-    if [ ! -f ".gitmodules" ]; then
-        echo -e "${BLUE}No submodules configured.${NC}"
-        return
-    fi
-    
-    if ! command_exists git; then
-        echo -e "${RED}Warning: git is not installed. Cannot initialize submodules.${NC}"
-        add_report "WARNING: git not found, skipping submodule initialization"
-        return
-    fi
-    
-    if git submodule status 2>/dev/null | grep -q '^-'; then
-        echo -e "${BLUE}Initializing submodules...${NC}"
-        if git submodule update --init --recursive; then
-            echo -e "${GREEN}Submodules initialized successfully${NC}"
-            add_report "INITIALIZED: Git submodules"
-        else
-            echo -e "${RED}Failed to initialize submodules${NC}"
-            add_report "ERROR: Failed to initialize git submodules"
-        fi
-    else
-        echo -e "${GREEN}All submodules already initialized${NC}"
-    fi
-    echo ""
-}
-
-resolve_path() {
-    readlink -f "$1" 2>/dev/null || echo "$1"
-}
-
-DOTFILES_DIR=$(resolve_path "$DOTFILES_DIR")
-
-install_config() {
+# Populate: _linked  _total  _status   for a package
+get_link_status() {
     local pkg="$1"
     local pkg_dir="$DOTFILES_DIR/$pkg"
-    
-    echo -e "${BLUE}Processing $pkg...${NC}"
-    
-    local conflicts=()
-    local linked=0
-    local total=0
-    local ready=0
-    
-    local conflicts=()
-    local linked=0
-    local total=0
-    local ready=0
-    
-    local whitelist=(
-        "."
-        ".config"
-        ".local"
-        ".local/share"
-        ".local/bin"
-        ".local/state"
-        ".cache"
-        ".ssh"
-        ".gnupg"
-        "bin"
-        "Library" # macOS
-        "Applications" # macOS
-    )
-    
-    while IFS= read -r dir; do
-        local rel_path="${dir#$pkg_dir/}"
-        if [ -z "$rel_path" ]; then continue; fi
-        
-        local target_path="$HOME/$rel_path"
-        
-        local safe=0
-        for w in "${whitelist[@]}"; do
-            if [ "$rel_path" == "$w" ]; then
-                safe=1
-                break
-            fi
-        done
-        if [ "$safe" -eq 1 ]; then continue; fi
-        
-        if [ -d "$target_path" ] && [ ! -L "$target_path" ]; then
-            local real_target
-            real_target=$(resolve_path "$target_path")
-            local real_source
-            real_source=$(resolve_path "$dir")
-
-            if [ "$real_target" == "$real_source" ]; then
-                 continue
-            fi
-
-            conflicts+=("$rel_path/ (Existing Directory - prevents clean symlink)")
-        fi
-    done < <(find "$pkg_dir" -type d)
+    _linked=0; _total=0
 
     while IFS= read -r file; do
-        total=$((total+1))
-        local rel_path="${file#$pkg_dir/}"
-        local target_path="$HOME/$rel_path"
-        
-        local real_target
-        real_target=$(resolve_path "$target_path")
-        local real_source
-        real_source=$(resolve_path "$file")
-        
-        if [ "$real_target" == "$real_source" ]; then
-             linked=$((linked+1))
-        elif [ -e "$target_path" ] || [ -L "$target_path" ]; then
-             conflicts+=("$rel_path")
-        else
-             ready=$((ready+1))
-        fi
-    done < <(find "$pkg_dir" -type f )
+        _total=$((_total + 1))
+        local real_target real_source
+        real_target="$(resolve_path "$HOME/${file#"$pkg_dir/"}")"
+        real_source="$(resolve_path "$file")"
+        [[ "$real_target" == "$real_source" ]] && _linked=$((_linked + 1))
+    done < <(find "$pkg_dir" -type f 2>/dev/null)
 
-    local action=""
-    
-    if [ ${#conflicts[@]} -gt 0 ]; then
-        echo -e "${RED}Conflicts detected for $pkg (${#conflicts[@]} files):${NC}"
-        for c in "${conflicts[@]:0:5}"; do
-            echo "  - $c"
-        done
-        if [ ${#conflicts[@]} -gt 5 ]; then echo "  ... and others"; fi
-        
-        if [ -n "$GLOBAL_CONFLICT_ACTION" ]; then
-             action="$GLOBAL_CONFLICT_ACTION"
-             echo "Using global conflict resolution: $action"
+    if   (( _total == 0 ));            then _status="EMPTY"
+    elif (( _linked == _total ));      then _status="LINKED"
+    elif (( _linked > 0 ));            then _status="PARTIAL"
+    else                                    _status="NOT LINKED"
+    fi
+}
+
+# ──────────────────────────────────────────────
+# Dependencies  (dependencies.conf)
+# ──────────────────────────────────────────────
+# Format:  package:command[,alt_command,...]
+#   • Comma-separated = alternatives  (any match → installed)
+#   • Empty command   → no CLI check available
+
+declare -A PACKAGE_MAP
+
+read_dependencies() {
+    local config_file="$DOTFILES_DIR/dependencies.conf"
+    PACKAGE_MAP=()
+    [[ -f "$config_file" ]] || { log_warn "dependencies.conf not found."; return; }
+
+    while IFS=: read -r pkg cmds; do
+        [[ "$pkg" =~ ^[[:space:]]*# ]] && continue
+        [[ -z "${pkg// }" ]]           && continue
+        # Trim whitespace (pure bash, no xargs)
+        pkg="${pkg#"${pkg%%[![:space:]]*}"}"; pkg="${pkg%"${pkg##*[![:space:]]}"}"
+        cmds="${cmds#"${cmds%%[![:space:]]*}"}"; cmds="${cmds%"${cmds##*[![:space:]]}"}"
+        PACKAGE_MAP["$pkg"]="$cmds"
+    done < "$config_file"
+}
+
+# Return 0 if ANY of the comma-separated commands exists
+check_commands() {
+    local cmds="$1" cmd
+    IFS=',' read -ra arr <<< "$cmds"
+    for cmd in "${arr[@]}"; do
+        cmd="${cmd#"${cmd%%[![:space:]]*}"}"; cmd="${cmd%"${cmd##*[![:space:]]}"}"
+        [[ -n "$cmd" ]] && command_exists "$cmd" && return 0
+    done
+    return 1
+}
+
+# Add or remove an entry in dependencies.conf
+update_deps_conf() {
+    local action="$1" pkg="$2" cmd="${3:-}"
+    local deps_file="$DOTFILES_DIR/dependencies.conf"
+
+    case "$action" in
+        add)
+            [[ ! -f "$deps_file" ]] && { echo "$pkg:$cmd" > "$deps_file"; return 0; }
+            if grep -q "^${pkg}:" "$deps_file" 2>/dev/null; then
+                log_warn "'$pkg' already in dependencies.conf"
+                return 1
+            fi
+            {
+                grep '^#' "$deps_file" 2>/dev/null || true
+                { grep -v '^#' "$deps_file" | grep -v '^[[:space:]]*$' || true
+                  echo "$pkg:$cmd"
+                } | sort
+            } > "$deps_file.tmp"
+            mv "$deps_file.tmp" "$deps_file"
+            ;;
+        remove)
+            [[ -f "$deps_file" ]] && sed -i "/^${pkg}:/d" "$deps_file"
+            ;;
+    esac
+}
+
+# ──────────────────────────────────────────────
+# Status Display
+# ──────────────────────────────────────────────
+
+init_submodules() {
+    log_info "Checking git submodules..."
+
+    [[ ! -f "$DOTFILES_DIR/.gitmodules" ]] && { log_info "No submodules configured."; echo; return; }
+
+    if ! command_exists git; then
+        log_error "git not installed — cannot initialise submodules."
+        add_report "ERROR: git not found"
+        echo; return
+    fi
+
+    if git -C "$DOTFILES_DIR" submodule status 2>/dev/null | grep -q '^-'; then
+        log_info "Initialising submodules..."
+        if git -C "$DOTFILES_DIR" submodule update --init --recursive; then
+            log_success "Submodules initialised."
+            add_report "OK: git submodules initialised"
         else
-            echo -e "Choose action for $pkg:"
-            echo "1) Backup existing files (rename with $BACKUP_SUFFIX) and Stow"
-            echo "2) Overwrite existing files (Delete) and Stow"
-            echo "3) Skip"
-            echo "4) Backup ALL (Apply to all future conflicts)"
-            echo "5) Overwrite ALL (Apply to all future conflicts)"
-            echo "6) Skip ALL (Apply to all future conflicts)"
-            read -p "Select (1-6): " choice
-            
-            case $choice in
+            log_error "Failed to initialise submodules."
+            add_report "ERROR: git submodule init failed"
+        fi
+    else
+        log_success "All submodules up-to-date."
+    fi
+    echo
+}
+
+show_status() {
+    read_dependencies
+
+    # Merge package-dirs + dependency entries
+    local -A all_pkgs
+    local pkg
+    for pkg in "${!PACKAGE_MAP[@]}"; do all_pkgs["$pkg"]=1; done
+    while IFS= read -r pkg; do all_pkgs["$pkg"]=1; done < <(get_package_dirs)
+
+    local sorted=()
+    while IFS= read -r pkg; do sorted+=("$pkg"); done \
+        < <(printf '%s\n' "${!all_pkgs[@]}" | sort)
+
+    local config_pkgs=() dep_pkgs=()
+    for pkg in "${sorted[@]}"; do
+        [[ -d "$DOTFILES_DIR/$pkg" ]] && config_pkgs+=("$pkg") || dep_pkgs+=("$pkg")
+    done
+
+
+    # ── Config packages ──
+    echo
+    printf "  %s📦 Package Config Status%s\n" "$BOLD$BLUE" "$NC"
+    printf "  %s╭───────────────────────────┬─────────────────┬─────────────────┬────────────╮%s\n" "$DIM" "$NC"
+    
+    local hdr
+    hdr="$(printf "│ %-25s │ %-15s │ %-15s │ %-10s │" "Package" "Command" "Binary Found" "Linked")"
+    printf "  %s%s%s\n" "$BOLD" "$hdr" "$NC"
+    printf "  %s├───────────────────────────┼─────────────────┼─────────────────┼────────────┤%s\n" "$DIM" "$NC"
+
+    for pkg in "${config_pkgs[@]}"; do
+        local cmds="${PACKAGE_MAP[$pkg]:-$pkg}" found linked_str color found_str
+        # found?
+        if [[ -z "$cmds" ]]; then 
+            found="N/A"
+            found_str="N/A            "
+        elif check_commands "$cmds";  then 
+            found="✓"
+            found_str="✓              "
+        else 
+            found="✗"
+            found_str="✗              "
+        fi
+        # linked?
+        get_link_status "$pkg"
+        linked_str="$_status"
+        # colour
+        if [[ "$found" == "✗" || "$_status" == "NOT LINKED" ]]; then color="$RED"
+        elif [[ "$_status" == "PARTIAL" ]]; then color="$YELLOW"
+        else color="$GREEN"; fi
+        # truncate long command lists for display
+        local cdisplay="${cmds:0:13}"
+        (( ${#cmds} > 13 )) && cdisplay="${cdisplay}.."
+
+        local line
+        line="$(printf "│ %-25s │ %-15s │ %s │ %-10s │" "$pkg" "$cdisplay" "$found_str" "$linked_str")"
+        printf "  %s%s%s\n" "$color" "$line" "$NC"
+        add_report "STATUS: $pkg  found=$found  linked=$_status"
+    done
+    printf "  %s╰───────────────────────────┴─────────────────┴─────────────────┴────────────╯%s\n" "$DIM" "$NC"
+
+    # ── Dependency-only packages ──
+    if (( ${#dep_pkgs[@]} > 0 )); then
+        echo
+        printf "  %s⚙️  Package Without Config%s\n" "$BOLD$BLUE" "$NC"
+        printf "  %s╭───────────────────────────┬─────────────────┬─────────────────╮%s\n" "$DIM" "$NC"
+        hdr="$(printf "│ %-25s │ %-15s │ %-15s │" "Package" "Command" "Binary Found")"
+        printf "  %s%s%s\n" "$BOLD" "$hdr" "$NC"
+        printf "  %s├───────────────────────────┼─────────────────┼─────────────────┤%s\n" "$DIM" "$NC"
+
+        for pkg in "${dep_pkgs[@]}"; do
+            local cmds="${PACKAGE_MAP[$pkg]:-$pkg}" found color="$NC" found_str
+            if [[ -z "$cmds" ]]; then 
+                found="N/A"
+                found_str="N/A            "
+            elif check_commands "$cmds"; then 
+                found="✓"; color="$GREEN"
+                found_str="✓              "
+            else 
+                found="✗"; color="$RED"
+                found_str="✗              "
+            fi
+
+            local line
+            line="$(printf "│ %-25s │ %-15s │ %s │" "$pkg" "$cmds" "$found_str")"
+            printf "  %s%s%s\n" "$color" "$line" "$NC"
+        done
+        printf "  %s╰───────────────────────────┴─────────────────┴─────────────────╯%s\n" "$DIM" "$NC"
+    fi
+    echo
+    printf "  %s💡 Note: Package mappings and command checks are loaded from %sdependencies.conf%s\n" "$DIM" "$BOLD" "$NC"
+    printf "  %s   There might be some packages available in your OS but not yet mapped%s\n" "$DIM" "$NC"
+    echo
+}
+
+# ──────────────────────────────────────────────
+# Link
+# ──────────────────────────────────────────────
+
+link_config() {
+    local pkg="$1"
+    local pkg_dir="$DOTFILES_DIR/$pkg"
+    local conflicts=() linked=0 total=0 ready=0
+
+    log_info "[$pkg]"
+
+    # ── directory conflicts ──
+    while IFS= read -r dir; do
+        local rel="${dir#"$pkg_dir/"}"
+        [[ -z "$rel" ]] && continue
+        is_safe_dir "$rel" && continue
+        local target="$HOME/$rel"
+        if [[ -d "$target" && ! -L "$target" ]]; then
+            local rt rs
+            rt="$(resolve_path "$target")"; rs="$(resolve_path "$dir")"
+            [[ "$rt" == "$rs" ]] && continue
+            conflicts+=("$rel/ (existing directory)")
+        fi
+    done < <(find "$pkg_dir" -type d 2>/dev/null)
+
+    # ── file status ──
+    while IFS= read -r file; do
+        total=$((total + 1))
+        local rel="${file#"$pkg_dir/"}"
+        local target="$HOME/$rel"
+        local rt rs
+        rt="$(resolve_path "$target")"; rs="$(resolve_path "$file")"
+        if   [[ "$rt" == "$rs" ]];                          then linked=$((linked + 1))
+        elif [[ -e "$target" || -L "$target" ]];            then conflicts+=("$rel")
+        else                                                     ready=$((ready + 1))
+        fi
+    done < <(find "$pkg_dir" -type f 2>/dev/null)
+
+    # ── decide action ──
+    local action=""
+
+    if (( ${#conflicts[@]} > 0 )); then
+        log_warn "  Conflicts: ${#conflicts[@]} file(s)"
+        local c; for c in "${conflicts[@]:0:3}"; do echo "    - $c"; done
+        (( ${#conflicts[@]} > 3 )) && echo "    … and $((${#conflicts[@]} - 3)) more"
+
+        if [[ -n "$GLOBAL_CONFLICT_ACTION" ]]; then
+            action="$GLOBAL_CONFLICT_ACTION"
+            echo "  → Global: $action"
+        else
+            echo "  1) Backup & link      2) Overwrite   3) Skip"
+            echo "  4) Backup ALL         5) Overwrite ALL   6) Skip ALL"
+            read -rp "  Select [1-6]: " choice
+            case "${choice:-3}" in
                 1) action="BACKUP" ;;
                 2) action="OVERWRITE" ;;
-                3) action="SKIP" ;;
-                4) 
-                   action="BACKUP"
-                   GLOBAL_CONFLICT_ACTION="BACKUP"
-                   ;;
-                5) 
-                   action="OVERWRITE"
-                   GLOBAL_CONFLICT_ACTION="OVERWRITE"
-                   ;;
-                6) 
-                   action="SKIP"
-                   GLOBAL_CONFLICT_ACTION="SKIP"
-                   ;;
+                4) action="BACKUP";     GLOBAL_CONFLICT_ACTION="BACKUP" ;;
+                5) action="OVERWRITE";  GLOBAL_CONFLICT_ACTION="OVERWRITE" ;;
+                6) action="SKIP";       GLOBAL_CONFLICT_ACTION="SKIP" ;;
                 *) action="SKIP" ;;
             esac
         fi
-    elif [ "$linked" -eq "$total" ] && [ "$total" -gt 0 ]; then
-        if [ -n "$GLOBAL_RESTOW_ACTION" ]; then
-             if [ "$GLOBAL_RESTOW_ACTION" == "YES_ALL" ]; then
-                 action="RESTOW"
-             else
-                 action="SKIP"
-             fi
+
+    elif (( linked == total && total > 0 )); then
+        if [[ -n "$GLOBAL_RESTOW_ACTION" ]]; then
+            [[ "$GLOBAL_RESTOW_ACTION" == "YES" ]] && action="RESTOW" || action="SKIP"
         else
-            read -p "Re-stow (refresh links) $pkg? (y/N/a/s): " choice
-            if [[ "$choice" =~ ^[Yy]$ ]]; then
-                action="RESTOW"
-            elif [[ "$choice" =~ ^[Aa]$ ]]; then
-                action="RESTOW"
-                GLOBAL_RESTOW_ACTION="YES_ALL"
-            elif [[ "$choice" =~ ^[Ss]$ ]]; then
-                action="SKIP"
-                GLOBAL_RESTOW_ACTION="SKIP_ALL"
-            else
-                action="SKIP"
-            fi
+            read -rp "  Already linked. Re-stow? [y/N/a=all/s=skip all]: " choice
+            case "${choice:-n}" in
+                [Yy]) action="RESTOW" ;;
+                [Aa]) action="RESTOW"; GLOBAL_RESTOW_ACTION="YES" ;;
+                [Ss]) action="SKIP";   GLOBAL_RESTOW_ACTION="SKIP" ;;
+                *)    action="SKIP" ;;
+            esac
         fi
+
     else
-        echo -e "${YELLOW}Ready to install (New: $ready, Linked: $linked).${NC}"
-        
-        if [ -n "$GLOBAL_INSTALL_ACTION" ]; then
-             if [ "$GLOBAL_INSTALL_ACTION" == "YES_ALL" ]; then
-                 action="INSTALL"
-             else
-                 action="SKIP"
-             fi
+        echo "  Ready: $ready new, $linked linked, $total total"
+        if [[ -n "$GLOBAL_LINK_ACTION" ]]; then
+            [[ "$GLOBAL_LINK_ACTION" == "YES" ]] && action="LINK" || action="SKIP"
         else
-            read -p "Install config for $pkg? (y/N/a/s): " choice
-            if [[ "$choice" =~ ^[Yy]$ ]]; then
-                action="INSTALL"
-            elif [[ "$choice" =~ ^[Aa]$ ]]; then
-                action="INSTALL"
-                GLOBAL_INSTALL_ACTION="YES_ALL"
-            elif [[ "$choice" =~ ^[Ss]$ ]]; then
-                action="SKIP"
-                GLOBAL_INSTALL_ACTION="SKIP_ALL"
-            else
-                action="SKIP"
-            fi
+            read -rp "  Link? [y/N/a=all/s=skip all]: " choice
+            case "${choice:-n}" in
+                [Yy]) action="LINK" ;;
+                [Aa]) action="LINK"; GLOBAL_LINK_ACTION="YES" ;;
+                [Ss]) action="SKIP";    GLOBAL_LINK_ACTION="SKIP" ;;
+                *)    action="SKIP" ;;
+            esac
         fi
     fi
-    
-    case $action in
+
+    # ── execute ──
+    case "$action" in
         BACKUP)
-            echo -e "${YELLOW}Backing up conflicting files...${NC}"
-             while IFS= read -r file; do
-                local rel_path="${file#$pkg_dir/}"
-                local target_path="$HOME/$rel_path"
-                local real_target
-                real_target=$(resolve_path "$target_path")
-                local real_source
-                real_source=$(resolve_path "$file")
-                
-                if [ -e "$target_path" ] || [ -L "$target_path" ]; then
-                    if [ "$real_target" != "$real_source" ]; then
-                         echo "Backing up $target_path"
-                         mv "$target_path" "$target_path$BACKUP_SUFFIX"
-                         add_report "BACKED UP: $target_path"
+            if (( DRY_RUN )); then
+                log_info "  [DRY RUN] Would backup & link $pkg"
+                add_report "DRY RUN: $pkg (backup)"; return
+            fi
+            while IFS= read -r file; do
+                local rel="${file#"$pkg_dir/"}"
+                local target="$HOME/$rel"
+                if [[ -e "$target" || -L "$target" ]]; then
+                    local rt rs
+                    rt="$(resolve_path "$target")"; rs="$(resolve_path "$file")"
+                    if [[ "$rt" != "$rs" ]]; then
+                        echo "  Backup: $rel"
+                        mv "$target" "${target}${BACKUP_SUFFIX}"
+                        add_report "BACKED UP: $target"
                     fi
                 fi
-            done < <(find "$pkg_dir" -type f)
-            
-            stow -t "$HOME" -v "$pkg"
-            add_report "INSTALLED: $pkg (with backups)"
+            done < <(find "$pkg_dir" -type f 2>/dev/null)
+            stow -d "$DOTFILES_DIR" -t "$HOME" -v "$pkg"
+            log_success "  ✓ Linked (with backups)"
+            add_report "LINKED: $pkg (with backups)"
             ;;
         OVERWRITE)
-            echo -e "${RED}Overwriting files...${NC}"
-            
+            if (( DRY_RUN )); then
+                log_info "  [DRY RUN] Would overwrite & link $pkg"
+                add_report "DRY RUN: $pkg (overwrite)"; return
+            fi
+            # remove conflicting directories
             while IFS= read -r dir; do
-                local rel_path="${dir#$pkg_dir/}"
-                if [ -z "$rel_path" ]; then continue; fi
-                
-                if [[ "$rel_path" == /* ]]; then 
-                    echo "Debug target safety: rel_path is absolute ($rel_path). Skipping."
-                    continue 
+                local rel="${dir#"$pkg_dir/"}"
+                [[ -z "$rel" || "$rel" == /* ]] && continue
+                is_safe_dir "$rel" && continue
+                local target="$HOME/$rel"
+                local rt; rt="$(resolve_path "$target")"
+                [[ "$rt" == "$DOTFILES_DIR"* ]] && continue
+                if [[ -d "$target" && ! -L "$target" ]]; then
+                    echo "  Remove dir: $rel"
+                    rm -rf "$target"
+                    add_report "DELETED DIR: $target"
                 fi
-
-                local target_path="$HOME/$rel_path"
-                
-                local real_target
-                real_target=$(resolve_path "$target_path")
-                if [[ "$real_target" == "$DOTFILES_DIR"* ]]; then
-                     echo "SAFETY GUARD: Skipping deletion of $real_target (inside repository via symlink)"
-                     continue
+            done < <(find "$pkg_dir" -mindepth 1 -type d 2>/dev/null)
+            # remove conflicting files
+            while IFS= read -r file; do
+                local rel="${file#"$pkg_dir/"}"
+                [[ -z "$rel" || "$rel" == /* ]] && continue
+                local target="$HOME/$rel"
+                local rt rs
+                rt="$(resolve_path "$target")"; rs="$(resolve_path "$file")"
+                [[ "$rt" == "$DOTFILES_DIR"* ]] && continue
+                if [[ (-e "$target" || -L "$target") && "$rt" != "$rs" ]]; then
+                    echo "  Remove: $rel"
+                    rm -f "$target"
+                    add_report "DELETED: $target"
                 fi
-                
-                local safe=0
-                for w in "${whitelist[@]}"; do
-                    if [ "$rel_path" == "$w" ]; then safe=1; break; fi
-                done
-                if [ "$safe" -eq 1 ]; then continue; fi
-                
-                if [ -d "$target_path" ] && [ ! -L "$target_path" ]; then
-                     echo "Removing directory $target_path"
-                     rm -rf "$target_path"
-                     add_report "DELETED DIR: $target_path"
-                fi
-            done < <(find "$pkg_dir" -mindepth 1 -type d)
-
-             while IFS= read -r file; do
-                local rel_path="${file#$pkg_dir/}"
-                 if [ -z "$rel_path" ]; then continue; fi
-
-                if [[ "$rel_path" == /* ]]; then 
-                    echo "Debug target safety: rel_path is absolute ($rel_path). Skipping."
-                    continue 
-                fi
-
-                local target_path="$HOME/$rel_path"
-                
-                local real_target
-                real_target=$(resolve_path "$target_path")
-                if [[ "$real_target" == "$DOTFILES_DIR"* ]]; then
-                     echo "SAFETY GUARD: Skipping deletion of $real_target (inside repository via symlink)"
-                     continue
-                fi
-
-                local real_source
-                real_source=$(resolve_path "$file")
-                
-                if [ -e "$target_path" ] || [ -L "$target_path" ]; then
-                    if [ "$real_target" != "$real_source" ]; then
-                         echo "Removing $target_path"
-                         rm -rf "$target_path"
-                         add_report "DELETED: $target_path"
-                    fi
-                fi
-            done < <(find "$pkg_dir" -mindepth 1 -type f)
-            
-            stow -t "$HOME" -R -v "$pkg"
-            add_report "INSTALLED: $pkg (overwrite)"
+            done < <(find "$pkg_dir" -mindepth 1 -type f 2>/dev/null)
+            stow -d "$DOTFILES_DIR" -t "$HOME" -R -v "$pkg"
+            log_success "  ✓ Linked (overwrite)"
+            add_report "LINKED: $pkg (overwrite)"
             ;;
-        INSTALL)
-            stow -t "$HOME" -v "$pkg"
-            add_report "INSTALLED: $pkg"
+        LINK)
+            if (( DRY_RUN )); then
+                log_info "  [DRY RUN] Would link $pkg"
+                add_report "DRY RUN: $pkg"; return
+            fi
+            stow -d "$DOTFILES_DIR" -t "$HOME" -v "$pkg"
+            log_success "  ✓ Linked"
+            add_report "LINKED: $pkg"
             ;;
         RESTOW)
-            stow -t "$HOME" -R -v "$pkg"
+            if (( DRY_RUN )); then
+                log_info "  [DRY RUN] Would restow $pkg"
+                add_report "DRY RUN: $pkg (restow)"; return
+            fi
+            stow -d "$DOTFILES_DIR" -t "$HOME" -R -v "$pkg"
+            log_success "  ✓ Re-stowed"
             add_report "RESTOWED: $pkg"
             ;;
         SKIP)
-            echo "Skipping $pkg"
+            echo "  Skipped"
             add_report "SKIPPED: $pkg"
             ;;
     esac
 }
 
+# ──────────────────────────────────────────────
+# Restore
+# ──────────────────────────────────────────────
+
 restore_config() {
     local pkg="$1"
     local pkg_dir="$DOTFILES_DIR/$pkg"
-    
-    local found_backups=0
-    local backup_files=()
+    local backup_entries=()
 
-    # First, scan for backups without prompting
     while IFS= read -r file; do
-        local rel_path="${file#$pkg_dir/}"
-        local target_path="$HOME/$rel_path"
-        local backup_path="$target_path$BACKUP_SUFFIX"
-        
-        if [ -e "$backup_path" ]; then
-            backup_files+=("$backup_path|$target_path")
-            found_backups=1
-        fi
-    done < <(find "$pkg_dir" -type f)
-    
-    if [ "$found_backups" -eq 0 ]; then
-        return
-    fi
+        local rel="${file#"$pkg_dir/"}"
+        local bp="$HOME/${rel}${BACKUP_SUFFIX}"
+        [[ -e "$bp" ]] && backup_entries+=("$bp|$HOME/$rel")
+    done < <(find "$pkg_dir" -type f 2>/dev/null)
 
-    echo -e "${BLUE}Backups found for $pkg. Processing...${NC}"
+    (( ${#backup_entries[@]} == 0 )) && return
+
+    log_info "[$pkg] ${#backup_entries[@]} backup(s)"
 
     local action=""
-    if [ -n "$GLOBAL_RESTORE_ACTION" ]; then
+    if [[ -n "$GLOBAL_RESTORE_ACTION" ]]; then
         action="$GLOBAL_RESTORE_ACTION"
     else
-        read -p "Restore backups for $pkg? (y/N/a/s): " choice
-        case $choice in
-            [Aa]) action="RESTORE"; GLOBAL_RESTORE_ACTION="RESTORE" ;;
-            [Ss]) action="SKIP"; GLOBAL_RESTORE_ACTION="SKIP" ;;
+        read -rp "  Restore? [y/N/a=all/s=skip all]: " choice
+        case "${choice:-n}" in
             [Yy]) action="RESTORE" ;;
-            *) action="SKIP" ;;
+            [Aa]) action="RESTORE"; GLOBAL_RESTORE_ACTION="RESTORE" ;;
+            [Ss]) action="SKIP";    GLOBAL_RESTORE_ACTION="SKIP" ;;
+            *)    action="SKIP" ;;
         esac
     fi
 
-    if [ "$action" == "RESTORE" ]; then
-        for entry in "${backup_files[@]}"; do
-            local b_path="${entry%|*}"
-            local t_path="${entry#*|}"
-            
-            if [ -e "$t_path" ] || [ -L "$t_path" ]; then
-                rm -rf "$t_path"
-            fi
-            mv "$b_path" "$t_path"
-            echo -e "  ${GREEN}✓ Restored $t_path${NC}"
-            add_report "RESTORED: $t_path"
+    if [[ "$action" == "RESTORE" ]]; then
+        if (( DRY_RUN )); then
+            log_info "  [DRY RUN] Would restore $pkg"
+            add_report "DRY RUN: restore $pkg"; return
+        fi
+        local entry
+        for entry in "${backup_entries[@]}"; do
+            local bp="${entry%|*}" tp="${entry#*|}"
+            [[ -e "$tp" || -L "$tp" ]] && rm -rf "$tp"
+            mv "$bp" "$tp"
+            log_success "  ✓ Restored $(basename "$tp")"
+            add_report "RESTORED: $tp"
         done
-        
-        # Automatically offer to unstow if we restored files
-        stow -t "$HOME" -D -v "$pkg" 2>/dev/null
-        add_report "UNSTOWED: $pkg (Restored local files)"
+        stow -d "$DOTFILES_DIR" -t "$HOME" -D -v "$pkg" 2>/dev/null || true
+        add_report "UNSTOWED: $pkg"
     else
-        echo "  Skipping restore for $pkg."
         add_report "SKIPPED RESTORE: $pkg"
     fi
 }
 
-add_new_config() {
-    echo -e "${BLUE}=== Add New Config Package ===${NC}"
-    echo ""
-    
-    while true; do
-        read -p "Enter package name: " pkg_name
-        
-        if [ -z "$pkg_name" ]; then
-            echo -e "${RED}Error: Package name cannot be empty${NC}"
-            continue
-        fi
-        
-        if [[ ! "$pkg_name" =~ ^[a-zA-Z0-9_-]+$ ]]; then
-            echo -e "${RED}Error: Package name can only contain letters, numbers, hyphens, and underscores${NC}"
-            continue
-        fi
-        
-        
-        if [ -d "$DOTFILES_DIR/$pkg_name" ]; then
-            echo -e "${YELLOW}Package '$pkg_name' already exists in the repository${NC}"
-            echo ""
-            echo "What would you like to do?"
-            echo "1) Add to dependencies.conf and README.md only (symlink existing package)"
-            echo "2) Try a different package name"
-            echo "3) Cancel"
-            read -p "Select (1-3): " choice
-            
-            case $choice in
-                1)
-                    read -p "Enter command to check installation (default: $pkg_name): " cmd_check
-                    if [ -z "$cmd_check" ]; then
-                        cmd_check="$pkg_name"
-                    fi
-                    restore_config() {
-    local pkg="$1"
-    local pkg_dir="$DOTFILES_DIR/$pkg"
-    echo -e "${BLUE}Checking backups for $pkg...${NC}"
-    
-    local found_backups=0
-    
-    while IFS= read -r file; do
-        local rel_path="${file#$pkg_dir/}"
-        local target_path="$HOME/$rel_path"
-        local backup_path="$target_path$BACKUP_SUFFIX"
-        
-        if [ -f "$backup_path" ] || [ -d "$backup_path" ]; then
-            echo -e "Found backup: $backup_path"
-            found_backups=1
-            read -p "Restore this backup (overwrite current)? (y/N): " choice < /dev/tty
-            if [[ "$choice" =~ ^[Yy]$ ]]; then
-                if [ -e "$target_path" ] || [ -L "$target_path" ]; then
-                    rm -rf "$target_path"
-                fi
-                mv "$backup_path" "$target_path"
-                echo -e "${GREEN}Restored $target_path${NC}"
-                add_report "RESTORED: $target_path"
-            else
-                 add_report "SKIPPED RESTORE: $backup_path"
-            fi
-        fi
-    done < <(find "$pkg_dir" -type f)
-    
-    if [ "$found_backups" -eq 0 ]; then
-        echo "No backups found for $pkg."
-    else
-        read -p "Unstow $pkg packages (remove existing symlinks)? (y/N): " choice < /dev/tty
-        if [[ "$choice" =~ ^[Yy]$ ]]; then
-             stow -t "$HOME" -D -v "$pkg"
-             add_report "UNSTOWED: $pkg"
-        fi
-    fi
-}
-                    local deps_file="$DOTFILES_DIR/dependencies.conf"
-                    local new_entry="$pkg_name:$cmd_check"
-                    
-                    if grep -q "^$pkg_name:" "$deps_file" 2>/dev/null; then
-                        echo -e "${YELLOW}Package already exists in dependencies.conf${NC}"
-                    else
-                        {
-                            grep -v "^#" "$deps_file" | grep -v "^$" || true
-                            echo "$new_entry"
-                        } | sort -u > "$deps_file.tmp"
-                        
-                        if grep -q "^#" "$deps_file" 2>/dev/null; then
-                            grep "^#" "$deps_file" > "$deps_file.new"
-                            cat "$deps_file.tmp" >> "$deps_file.new"
-                        else
-                            mv "$deps_file.tmp" "$deps_file.new"
-                        fi
-                        
-                        mv "$deps_file.new" "$deps_file"
-                        rm -f "$deps_file.tmp"
-                        echo -e "${GREEN}✓ Updated dependencies.conf${NC}"
-                    fi
-                    
-                    local readme_file="$DOTFILES_DIR/README.md"
-                    local new_readme_entry="- **$pkg_name**"
-                    
-                    if [ "$cmd_check" != "$pkg_name" ]; then
-                        new_readme_entry="- **$pkg_name** ($cmd_check)"
-                    fi
-                    
-                    if grep -q "^- \*\*$pkg_name\*\*" "$readme_file" 2>/dev/null; then
-                        echo -e "${YELLOW}Package already exists in README.md${NC}"
-                    else
-                        local pkg_check_line=$(grep -n "Package to check:" "$readme_file" | cut -d: -f1)
-                        
-                        if [ -n "$pkg_check_line" ]; then
-                            local start_line=$((pkg_check_line + 2))
-                            local end_line=$(tail -n +$start_line "$readme_file" | grep -n "^$\|^#" | head -1 | cut -d: -f1)
-                            
-                            if [ -n "$end_line" ]; then
-                                end_line=$((start_line + end_line - 2))
-                            else
-                                end_line=$(wc -l < "$readme_file")
-                            fi
-                            
-                            {
-                                sed -n "${start_line},${end_line}p" "$readme_file"
-                                echo "$new_readme_entry"
-                            } | sort -u > "$readme_file.tmp"
-                            
-                            {
-                                head -n $((start_line - 1)) "$readme_file"
-                                cat "$readme_file.tmp"
-                                tail -n +$((end_line + 1)) "$readme_file"
-                            } > "$readme_file.new"
-                            
-                            mv "$readme_file.new" "$readme_file"
-                            rm -f "$readme_file.tmp"
-                            
-                            echo -e "${GREEN}✓ Updated README.md${NC}"
-                        fi
-                    fi
-                    
-                    echo ""
-                    echo -e "${GREEN}Package '$pkg_name' registered successfully!${NC}"
-                    echo ""
-                    read -p "Would you like to link (install) this config now? (y/N): " link_now
-                    if [[ "$link_now" =~ ^[Yy]$ ]]; then
-                        install_config "$pkg_name"
-                    fi
-                    add_report "REGISTERED EXISTING PACKAGE: $pkg_name (command: $cmd_check)"
-                    return
-                    ;;
-                2)
-                    continue
-                    ;;
-                3)
-                    return
-                    ;;
-                *)
-                    echo -e "${RED}Invalid choice${NC}"
-                    return
-                    ;;
-            esac
-        fi
-        
-        break
-    done
-    
-    read -p "Enter command to check installation (default: $pkg_name): " cmd_check
-    if [ -z "$cmd_check" ]; then
-        cmd_check="$pkg_name"
-    fi
-    
-    while true; do
-        echo ""
-        echo -e "${YELLOW}Examples:${NC}"
-        echo "  .config/yazi       → Creates: $pkg_name/.config/yazi/"
-        echo "  .bashrc            → Creates: $pkg_name/.bashrc"
-        echo "  .config/tmux/tmux.conf → Creates: $pkg_name/.config/tmux/tmux.conf"
-        echo ""
-        read -p "Enter path relative to \$HOME: " rel_path
-        
-        if [ -z "$rel_path" ]; then
-            echo -e "${RED}Error: Path cannot be empty${NC}"
-            continue
-        fi
-        
-        if [[ "$rel_path" =~ ^[/~] ]]; then
-            echo -e "${RED}Error: Path should be relative (don't start with / or ~)${NC}"
-            continue
-        fi
-        
-        local home_path="$HOME/$rel_path"
-        if [ -e "$home_path" ] || [ -L "$home_path" ]; then
-            echo ""
-            echo -e "${YELLOW}File/directory already exists: $home_path${NC}"
-            echo ""
-            echo "What would you like to do?"
-            echo "1) Import existing file/directory to repository"
-            echo "2) Try a different path"
-            echo "3) Cancel"
-            read -p "Select (1-3): " choice
-            
-            case $choice in
-                1)
-                    echo -e "${BLUE}Importing existing file/directory...${NC}"
-                    
-                    local pkg_path="$DOTFILES_DIR/$pkg_name/$rel_path"
-                    local parent_dir=$(dirname "$pkg_path")
-                    mkdir -p "$parent_dir"
-                    
-                    if [ -d "$home_path" ] && [ ! -L "$home_path" ]; then
-                        cp -r "$home_path" "$parent_dir/"
-                        echo -e "${GREEN}✓ Imported directory: $rel_path${NC}"
-                    else
-                        cp "$home_path" "$pkg_path"
-                        echo -e "${GREEN}✓ Imported file: $rel_path${NC}"
-                    fi
-                    
-                    local deps_file="$DOTFILES_DIR/dependencies.conf"
-                    local new_entry="$pkg_name:$cmd_check"
-                    
-                    {
-                        grep -v "^#" "$deps_file" | grep -v "^$" || true
-                        echo "$new_entry"
-                    } | sort -u > "$deps_file.tmp"
-                    
-                    if grep -q "^#" "$deps_file" 2>/dev/null; then
-                        grep "^#" "$deps_file" > "$deps_file.new"
-                        cat "$deps_file.tmp" >> "$deps_file.new"
-                    else
-                        mv "$deps_file.tmp" "$deps_file.new"
-                    fi
-                    
-                    mv "$deps_file.new" "$deps_file"
-                    rm -f "$deps_file.tmp"
-                    
-                    echo -e "${GREEN}✓ Updated dependencies.conf${NC}"
-                    
-                    local readme_file="$DOTFILES_DIR/README.md"
-                    local new_readme_entry="- **$pkg_name**"
-                    
-                    if [ "$cmd_check" != "$pkg_name" ]; then
-                        new_readme_entry="- **$cmd_check** ($pkg_name)"
-                    fi
-                    
-                    local pkg_check_line=$(grep -n "Package to check:" "$readme_file" | cut -d: -f1)
-                    
-                    if [ -n "$pkg_check_line" ]; then
-                        local start_line=$((pkg_check_line + 2))
-                        local end_line=$(tail -n +$start_line "$readme_file" | grep -n "^$\|^#" | head -1 | cut -d: -f1)
-                        
-                        if [ -n "$end_line" ]; then
-                            end_line=$((start_line + end_line - 2))
-                        else
-                            end_line=$(wc -l < "$readme_file")
-                        fi
-                        
-                        {
-                            sed -n "${start_line},${end_line}p" "$readme_file"
-                            echo "$new_readme_entry"
-                        } | sort -u > "$readme_file.tmp"
-                        
-                        {
-                            head -n $((start_line - 1)) "$readme_file"
-                            cat "$readme_file.tmp"
-                            tail -n +$((end_line + 1)) "$readme_file"
-                        } > "$readme_file.new"
-                        
-                        mv "$readme_file.new" "$readme_file"
-                        rm -f "$readme_file.tmp"
-                        
-                        echo -e "${GREEN}✓ Updated README.md${NC}"
-                    fi
-                    
-                    echo ""
-                    echo -e "${GREEN}Package '$pkg_name' imported successfully!${NC}"
-                    echo ""
-                    read -p "Would you like to link (install) this config now? (y/N): " link_now
-                    if [[ "$link_now" =~ ^[Yy]$ ]]; then
-                        install_config "$pkg_name"
-                    else
-                        echo -e "${BLUE}Next steps:${NC}"
-                        echo "1. Review imported files at: $DOTFILES_DIR/$pkg_name/"
-                        echo "2. Run './setup.sh' and select 'Install/Update Configs' to create symlinks"
-                        echo "   (The original file will be backed up)"
-                        echo ""
-                    fi
-                    
-                    add_report "IMPORTED PACKAGE: $pkg_name (command: $cmd_check, path: $rel_path)"
-                    return
-                    ;;
-                2)
-                    continue
-                    ;;
-                3)
-                    return
-                    ;;
-                *)
-                    echo -e "${RED}Invalid choice${NC}"
-                    return
-                    ;;
-            esac
-        fi
-        
-        break
-    done
-    
-    local pkg_path="$DOTFILES_DIR/$pkg_name/$rel_path"
-    local is_file=0
-    
-    if [[ "$rel_path" =~ \.[a-zA-Z0-9]+$ ]] || [[ ! "$rel_path" =~ /$ ]]; then
-        if [[ "$rel_path" =~ \. ]] || [[ "$rel_path" =~ rc$ ]] || [[ "$rel_path" =~ conf$ ]]; then
-            is_file=1
-        fi
-    fi
-    
-    echo ""
-    echo -e "${YELLOW}Creating package structure:${NC}"
-    echo "  $pkg_name/$rel_path"
-    echo ""
-    
-    if [ "$is_file" -eq 1 ]; then
-        local parent_dir=$(dirname "$pkg_path")
-        mkdir -p "$parent_dir"
-        
-        cat > "$pkg_path" << EOF
-# Configuration file for $pkg_name
-# Add your configuration here
+# ──────────────────────────────────────────────
+# Add New Config
+# ──────────────────────────────────────────────
 
-EOF
-        echo -e "${GREEN}✓ Created directory: $pkg_name/$(dirname "$rel_path")/${NC}"
-        echo -e "${GREEN}✓ Created placeholder file: $pkg_name/$rel_path${NC}"
-    else
-        mkdir -p "$pkg_path"
-        echo -e "${GREEN}✓ Created directory: $pkg_name/$rel_path${NC}"
+add_new_config() {
+    log_info "=== Add New Config Package ==="
+    echo
+
+    # ── package name ──
+    local pkg_name
+    while true; do
+        read -rp "Package name: " pkg_name
+        [[ -z "$pkg_name" ]]              && { log_error "Cannot be empty."; continue; }
+        [[ "$pkg_name" =~ ^[a-zA-Z0-9_-]+$ ]] || { log_error "Only [a-zA-Z0-9_-] allowed."; continue; }
+        break
+    done
+
+    # ── existing dir? ──
+    if [[ -d "$DOTFILES_DIR/$pkg_name" ]]; then
+        log_warn "'$pkg_name' already exists as a directory."
+        read -rp "Register in dependencies.conf only? [y/N]: " ch
+        [[ ! "$ch" =~ ^[Yy]$ ]] && { echo "Cancelled."; return; }
+
+        read -rp "Command to check (default: $pkg_name): " cmd_check
+        cmd_check="${cmd_check:-$pkg_name}"
+        update_deps_conf "add" "$pkg_name" "$cmd_check" && \
+            log_success "✓ Registered '$pkg_name'"
+
+        read -rp "Link now? [y/N]: " ch
+        [[ "$ch" =~ ^[Yy]$ ]] && link_config "$pkg_name"
+        add_report "REGISTERED: $pkg_name ($cmd_check)"
+        return
     fi
-    
-    local deps_file="$DOTFILES_DIR/dependencies.conf"
-    local new_entry="$pkg_name:$cmd_check"
-    
-    {
-        grep -v "^#" "$deps_file" | grep -v "^$" || true
-        echo "$new_entry"
-    } | sort -u > "$deps_file.tmp"
-    
-    if grep -q "^#" "$deps_file" 2>/dev/null; then
-        grep "^#" "$deps_file" > "$deps_file.new"
-        cat "$deps_file.tmp" >> "$deps_file.new"
-    else
-        mv "$deps_file.tmp" "$deps_file.new"
-    fi
-    
-    mv "$deps_file.new" "$deps_file"
-    rm -f "$deps_file.tmp"
-    
-    echo -e "${GREEN}✓ Updated dependencies.conf${NC}"
-    
-    local readme_file="$DOTFILES_DIR/README.md"
-    local new_readme_entry="- **$pkg_name**"
-    
-    if [ "$cmd_check" != "$pkg_name" ]; then
-        new_readme_entry="- **$pkg_name** ($cmd_check)"
-    fi
-    
-    local pkg_check_line=$(grep -n "Package to check:" "$readme_file" | cut -d: -f1)
-    
-    if [ -n "$pkg_check_line" ]; then
-        local start_line=$((pkg_check_line + 2))
-        
-        local end_line=$(tail -n +$start_line "$readme_file" | grep -n "^$\|^#" | head -1 | cut -d: -f1)
-        
-        if [ -n "$end_line" ]; then
-            end_line=$((start_line + end_line - 2))
+
+    # ── command ──
+    read -rp "Command to check (default: $pkg_name): " cmd_check
+    cmd_check="${cmd_check:-$pkg_name}"
+
+    # ── config path ──
+    local rel_path
+    while true; do
+        echo
+        echo "Examples:"
+        echo "  .config/yazi             → $pkg_name/.config/yazi/"
+        echo "  .bashrc                  → $pkg_name/.bashrc"
+        echo "  .config/tmux/tmux.conf   → $pkg_name/.config/tmux/tmux.conf"
+        echo
+        read -rp "Path relative to \$HOME: " rel_path
+        [[ -z "$rel_path" ]]      && { log_error "Cannot be empty.";     continue; }
+        [[ "$rel_path" =~ ^[/~] ]] && { log_error "No / or ~ prefix.";  continue; }
+        break
+    done
+
+    local home_path="$HOME/$rel_path"
+    local pkg_path="$DOTFILES_DIR/$pkg_name/$rel_path"
+    local parent_dir
+    parent_dir="$(dirname "$pkg_path")"
+
+    if [[ -e "$home_path" || -L "$home_path" ]]; then
+        # ── import existing ──
+        log_warn "Found existing: $home_path"
+        echo "  1) Import to repository   2) Cancel"
+        read -rp "  Select [1-2]: " ch
+        [[ "$ch" != "1" ]] && { echo "Cancelled."; return; }
+
+        mkdir -p "$parent_dir"
+        if [[ -d "$home_path" && ! -L "$home_path" ]]; then
+            cp -r "$home_path" "$parent_dir/"
+            log_success "✓ Imported directory: $rel_path"
         else
-            end_line=$(wc -l < "$readme_file")
+            cp "$home_path" "$pkg_path"
+            log_success "✓ Imported file: $rel_path"
         fi
-        
-        {
-            sed -n "${start_line},${end_line}p" "$readme_file"
-            echo "$new_readme_entry"
-        } | sort -u > "$readme_file.tmp"
-        
-        {
-            head -n $((start_line - 1)) "$readme_file"
-            cat "$readme_file.tmp"
-            tail -n +$((end_line + 1)) "$readme_file"
-        } > "$readme_file.new"
-        
-        mv "$readme_file.new" "$readme_file"
-        rm -f "$readme_file.tmp"
-        
-        echo -e "${GREEN}✓ Updated README.md${NC}"
     else
-        echo -e "${YELLOW}⚠ Could not find 'Package to check:' section in README.md${NC}"
-        echo -e "${YELLOW}  Please manually add: $new_readme_entry${NC}"
-    fi
-    
-    echo ""
-    echo -e "${GREEN}Package '$pkg_name' added successfully!${NC}"
-    echo ""
-    read -p "Would you like to link (install) this config now? (y/N): " link_now
-    if [[ "$link_now" =~ ^[Yy]$ ]]; then
-        install_config "$pkg_name"
-    else
-        echo -e "${BLUE}Next steps:${NC}"
-        
-        if [ "$is_file" -eq 1 ]; then
-            echo "1. Edit your config file at: $pkg_path"
+        # ── create new ──
+        mkdir -p "$parent_dir"
+        if [[ "$rel_path" == *.* || "$rel_path" =~ (rc|conf|profile|env)$ ]]; then
+            printf "# %s configuration\n" "$pkg_name" > "$pkg_path"
+            log_success "✓ Created file: $pkg_name/$rel_path"
         else
-            echo "1. Add your config files to: $pkg_path"
+            mkdir -p "$pkg_path"
+            log_success "✓ Created directory: $pkg_name/$rel_path"
         fi
-        
-        echo "2. Run './setup.sh' and select 'Install/Update Configs' to deploy"
-        echo ""
     fi
-    
-    add_report "ADDED NEW PACKAGE: $pkg_name (command: $cmd_check, path: $rel_path)"
+
+    update_deps_conf "add" "$pkg_name" "$cmd_check"
+    log_success "✓ Updated dependencies.conf"
+    echo
+
+    log_success "Package '$pkg_name' added!"
+    read -rp "Link now? [y/N]: " ch
+    [[ "$ch" =~ ^[Yy]$ ]] && link_config "$pkg_name"
+
+    add_report "ADDED: $pkg_name ($cmd_check, $rel_path)"
 }
+
+# ──────────────────────────────────────────────
+# Delete Config
+# ──────────────────────────────────────────────
 
 delete_config() {
-  while true; do
-    echo -e "${BLUE}=== Delete Config Package ===${NC}"
-    echo ""
+    while true; do
+        log_info "=== Delete Config Package ==="
+        echo
 
-    local packages=()
-    for pkg in */ ; do
-        pkg=${pkg%/}
-        if [[ "$pkg" == "setup.sh" || "$pkg" == "README.md" || "$pkg" == "LICENSE" || "$pkg" == ".git" ]]; then
+        # build selection list
+        local packages=()
+        while IFS= read -r pkg; do packages+=("$pkg"); done < <(get_package_dirs)
+
+        read_dependencies
+        local orphans=()
+        for pkg in "${!PACKAGE_MAP[@]}"; do
+            [[ ! -d "$DOTFILES_DIR/$pkg" ]] && orphans+=("$pkg")
+        done
+
+        if (( ${#packages[@]} == 0 && ${#orphans[@]} == 0 )); then
+            log_warn "No packages found."
+            return
+        fi
+
+        local items=()
+        for pkg in "${packages[@]}"; do
+            get_link_status "$pkg"
+            local color="$NC"
+            case "$_status" in
+                LINKED)       color="$GREEN" ;;
+                PARTIAL)      color="$YELLOW" ;;
+                "NOT LINKED") color="$RED" ;;
+            esac
+            items+=("dir:$pkg")
+            local line
+            line="$(printf "  %2d) %-25s [%s]" "${#items[@]}" "$pkg" "$_status")"
+            printf "%s%s%s\n" "$color" "$line" "$NC"
+        done
+        for o in "${orphans[@]}"; do
+            items+=("orphan:$o")
+            local line
+            line="$(printf "  %2d) %-25s [ORPHAN]" "${#items[@]}" "$o")"
+            printf "%s%s%s\n" "$YELLOW" "$line" "$NC"
+        done
+
+        echo
+        read -rp "Select (0 to cancel): " num
+        [[ ! "$num" =~ ^[0-9]+$ || "$num" -eq 0 ]] && return
+        local idx=$((num - 1))
+        (( idx >= ${#items[@]} )) && { log_error "Invalid."; continue; }
+
+        local sel="${items[$idx]}"
+        local kind="${sel%%:*}" name="${sel#*:}"
+
+        if [[ "$kind" == "orphan" ]]; then
+            read -rp "Remove orphan '$name' from deps? [y/N]: " ch
+            if [[ "$ch" =~ ^[Yy]$ ]]; then
+                update_deps_conf "remove" "$name"
+                log_success "✓ Cleaned: $name"
+                add_report "CLEANED ORPHAN: $name"
+            fi
+        else
+            echo
+            echo "  1) Unlink only (remove symlinks)"
+            echo "  2) Full remove (unlink + delete from repo)"
+            echo "  3) Cancel"
+            read -rp "  Select [1-3]: " ch
+
+            case "${ch:-3}" in
+                1)
+                    get_link_status "$name"
+                    if (( _linked == 0 )); then
+                        log_warn "  '$name' is not linked."
+                        add_report "SKIP UNLINK: $name"
+                    else
+                        if (( DRY_RUN )); then
+                            log_info "  [DRY RUN] Would unlink $name"
+                        else
+                            stow -d "$DOTFILES_DIR" -t "$HOME" -D -v "$name"
+                            log_success "  ✓ Unlinked $name"
+                            add_report "UNLINKED: $name"
+                        fi
+                    fi
+                    ;;
+                2)
+                    printf "  %sWARNING: Permanently deletes '%s'!%s\n" "$RED" "$name" "$NC"
+                    read -rp "  Confirm? [y/N]: " ch
+                    [[ ! "$ch" =~ ^[Yy]$ ]] && { echo "  Cancelled."; continue; }
+
+                    if (( DRY_RUN )); then
+                        log_info "  [DRY RUN] Would fully remove $name"
+                    else
+                        get_link_status "$name"
+                        (( _linked > 0 )) && {
+                            stow -d "$DOTFILES_DIR" -t "$HOME" -D -v "$name" 2>/dev/null || true
+                            add_report "UNLINKED: $name"
+                        }
+                        rm -rf "$DOTFILES_DIR/$name"
+                        update_deps_conf "remove" "$name"
+                        log_success "  ✓ Fully removed $name"
+                        add_report "REMOVED: $name"
+                    fi
+                    ;;
+                *) echo "  Cancelled." ;;
+            esac
+        fi
+
+        echo
+        read -rp "Delete another? [y/N]: " ch
+        [[ ! "$ch" =~ ^[Yy]$ ]] && break
+    done
+}
+
+# ──────────────────────────────────────────────
+# Report
+# ──────────────────────────────────────────────
+
+print_report() {
+    (( ${#REPORT[@]} == 0 )) && return
+
+    echo
+    echo "════════════════ REPORT ════════════════"
+    local item
+    for item in "${REPORT[@]}"; do
+        [[ -n "$item" ]] && echo "  $item"
+    done
+    echo "════════════════════════════════════════"
+
+    read -rp "Save report? [y/N]: " ch
+    if [[ "$ch" =~ ^[Yy]$ ]]; then
+        local file="dotfiles_report_$(date +%Y%m%d_%H%M%S).txt"
+        printf "%s\n" "${REPORT[@]}" > "$DOTFILES_DIR/$file"
+        log_success "Saved: $file"
+    fi
+}
+
+# ──────────────────────────────────────────────
+# CLI Commands
+# ──────────────────────────────────────────────
+
+cmd_link() {
+    local link_all=0 specific=()
+    local arg
+    for arg in "$@"; do
+        case "$arg" in
+            --all) link_all=1 ;;
+            *)     specific+=("$arg") ;;
+        esac
+    done
+
+    init_submodules
+    show_status
+
+    local pkgs=()
+    if (( ${#specific[@]} > 0 )); then
+        pkgs=("${specific[@]}")
+    else
+        while IFS= read -r p; do pkgs+=("$p"); done < <(get_package_dirs)
+    fi
+
+    if (( link_all )); then
+        GLOBAL_LINK_ACTION="YES"
+        GLOBAL_RESTOW_ACTION="YES"
+        GLOBAL_CONFLICT_ACTION="BACKUP"
+    fi
+
+    echo "Starting linking process…"
+    echo
+
+    local i=0
+    for pkg in "${pkgs[@]}"; do
+        i=$((i + 1))
+        if [[ ! -d "$DOTFILES_DIR/$pkg" ]]; then
+            log_error "Package '$pkg' not found."
             continue
         fi
-        packages+=("$pkg")
+        printf "%s[%d/%d]%s " "$DIM" "$i" "${#pkgs[@]}" "$NC"
+        link_config "$pkg"
+    done
+}
+
+cmd_restore() {
+    local restore_all=0 specific=()
+    local arg
+    for arg in "$@"; do
+        case "$arg" in
+            --all) restore_all=1 ;;
+            *)     specific+=("$arg") ;;
+        esac
     done
 
-    # Also detect orphaned entries in dependencies.conf (no matching directory)
-    local orphans=()
-    local deps_file="$DOTFILES_DIR/dependencies.conf"
-    if [ -f "$deps_file" ]; then
-        while IFS=':' read -r pkg cmd; do
-            [[ "$pkg" =~ ^#.*$ ]] && continue
-            [[ -z "$pkg" ]] && continue
-            pkg=$(echo "$pkg" | xargs)
-            if [ ! -d "$DOTFILES_DIR/$pkg" ]; then
-                orphans+=("$pkg")
-            fi
-        done < "$deps_file"
-    fi
+    (( restore_all )) && GLOBAL_RESTORE_ACTION="RESTORE"
 
-    if [ ${#packages[@]} -eq 0 ] && [ ${#orphans[@]} -eq 0 ]; then
-        echo -e "${YELLOW}No config packages found.${NC}"
-        return
-    fi
-
-    echo "Available packages:"
-    local all_items=()
-
-    for i in "${!packages[@]}"; do
-        local pkg="${packages[$i]}"
-        local pkg_dir="$DOTFILES_DIR/$pkg"
-        local linked=0
-        local total=0
-
-        while IFS= read -r file; do
-            total=$((total+1))
-            local rel_path="${file#$pkg_dir/}"
-            local target_path="$HOME/$rel_path"
-            local real_target
-            real_target=$(resolve_path "$target_path")
-            local real_source
-            real_source=$(resolve_path "$file")
-            if [ "$real_target" == "$real_source" ]; then
-                linked=$((linked+1))
-            fi
-        done < <(find "$pkg_dir" -type f)
-
-        local status
-        if [ "$total" -eq 0 ]; then
-            status="EMPTY"
-        elif [ "$linked" -eq "$total" ]; then
-            status="LINKED"
-        elif [ "$linked" -gt 0 ]; then
-            status="PARTIAL"
-        else
-            status="NOT LINKED"
-        fi
-
-        local color="$NC"
-        if [ "$status" == "LINKED" ]; then color="$GREEN"
-        elif [ "$status" == "PARTIAL" ]; then color="$YELLOW"
-        elif [ "$status" == "NOT LINKED" ]; then color="$RED"
-        fi
-
-        all_items+=("dir:$pkg")
-        printf "  %2d) ${color}%-25s [%s]${NC}\n" "${#all_items[@]}" "$pkg" "$status"
-    done
-
-    for orphan in "${orphans[@]}"; do
-        all_items+=("orphan:$orphan")
-        printf "  %2d) ${YELLOW}%-25s [ORPHAN]${NC}\n" "${#all_items[@]}" "$orphan"
-    done
-
-    echo ""
-    read -p "Select package number (0 to cancel): " pkg_num
-
-    if [[ ! "$pkg_num" =~ ^[0-9]+$ ]] || [ "$pkg_num" -eq 0 ]; then
-        echo "Cancelled."
-        return
-    fi
-
-    local idx=$((pkg_num-1))
-    if [ "$idx" -ge "${#all_items[@]}" ]; then
-        echo -e "${RED}Invalid selection.${NC}"
-        return
-    fi
-
-    local selected_item="${all_items[$idx]}"
-    local item_type="${selected_item%%:*}"
-    local selected_pkg="${selected_item#*:}"
-
-    # Handle orphaned dependency entries
-    if [ "$item_type" == "orphan" ]; then
-        echo ""
-        echo -e "Selected orphan entry: ${YELLOW}$selected_pkg${NC}"
-        echo -e "${YELLOW}This package exists in dependencies.conf/README.md but has no directory.${NC}"
-        read -p "Remove orphaned entries? (y/N): " confirm
-        if [[ "$confirm" =~ ^[Yy]$ ]]; then
-            local deps_file="$DOTFILES_DIR/dependencies.conf"
-            if grep -q "^$selected_pkg:" "$deps_file" 2>/dev/null; then
-                sed -i "/^$selected_pkg:/d" "$deps_file"
-                echo -e "${GREEN}✓ Removed from dependencies.conf${NC}"
-            fi
-
-            local readme_file="$DOTFILES_DIR/README.md"
-            if grep -q "^- \*\*$selected_pkg\*\*" "$readme_file" 2>/dev/null; then
-                sed -i "/^- \*\*$selected_pkg\*\*/d" "$readme_file"
-                echo -e "${GREEN}✓ Removed from README.md${NC}"
-            fi
-
-            echo -e "${GREEN}Orphaned entry '$selected_pkg' cleaned up.${NC}"
-            add_report "CLEANED ORPHAN: $selected_pkg"
-        else
-            echo "Cancelled."
-        fi
+    local pkgs=()
+    if (( ${#specific[@]} > 0 )); then
+        pkgs=("${specific[@]}")
     else
-        # Handle normal directory packages
-        local selected_pkg_dir="$DOTFILES_DIR/$selected_pkg"
-
-    echo ""
-    echo -e "Selected: ${BLUE}$selected_pkg${NC}"
-    echo ""
-    echo "1) Unlink only (unstow - remove symlinks)"
-    echo "2) Full remove (unstow + delete from repository)"
-    echo "3) Cancel"
-    read -p "Select action (1-3): " action_choice
-
-    case $action_choice in
-        1)
-            # Check if actually linked before unlinking
-            local linked=0
-            local total=0
-
-            while IFS= read -r file; do
-                total=$((total+1))
-                local rel_path="${file#$selected_pkg_dir/}"
-                local target_path="$HOME/$rel_path"
-                local real_target
-                real_target=$(resolve_path "$target_path")
-                local real_source
-                real_source=$(resolve_path "$file")
-                if [ "$real_target" == "$real_source" ]; then
-                    linked=$((linked+1))
-                fi
-            done < <(find "$selected_pkg_dir" -type f)
-
-            if [ "$linked" -eq 0 ]; then
-                echo ""
-                echo -e "${YELLOW}Config '$selected_pkg' is not linked. Nothing to unlink.${NC}"
-                add_report "SKIP UNLINK: $selected_pkg (not linked)"
-                return
-            fi
-
-            echo ""
-            echo -e "${YELLOW}Unlinking $selected_pkg ($linked/$total files linked)...${NC}"
-            if stow -t "$HOME" -D -v "$selected_pkg"; then
-                echo -e "${GREEN}Successfully unlinked $selected_pkg${NC}"
-                add_report "UNLINKED: $selected_pkg ($linked files)"
-            else
-                echo -e "${RED}Failed to unlink $selected_pkg${NC}"
-                add_report "ERROR UNLINK: $selected_pkg"
-            fi
-            ;;
-        2)
-            echo ""
-            echo -e "${RED}WARNING: This will permanently delete '$selected_pkg' from the repository!${NC}"
-            read -p "Are you sure? (y/N): " confirm
-
-            if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
-                echo "Cancelled."
-                return
-            fi
-
-            # Unstow first if linked
-            local linked=0
-            while IFS= read -r file; do
-                local rel_path="${file#$selected_pkg_dir/}"
-                local target_path="$HOME/$rel_path"
-                local real_target
-                real_target=$(resolve_path "$target_path")
-                local real_source
-                real_source=$(resolve_path "$file")
-                if [ "$real_target" == "$real_source" ]; then
-                    linked=$((linked+1))
-                fi
-            done < <(find "$selected_pkg_dir" -type f)
-
-            if [ "$linked" -gt 0 ]; then
-                echo -e "${YELLOW}Unlinking $selected_pkg first...${NC}"
-                stow -t "$HOME" -D -v "$selected_pkg"
-                add_report "UNLINKED: $selected_pkg"
-            fi
-
-            # Remove package directory
-            echo -e "${YELLOW}Removing package directory...${NC}"
-            rm -rf "$selected_pkg_dir"
-            echo -e "${GREEN}\u2713 Removed directory: $selected_pkg${NC}"
-
-            # Remove from dependencies.conf
-            local deps_file="$DOTFILES_DIR/dependencies.conf"
-            if grep -q "^$selected_pkg:" "$deps_file" 2>/dev/null; then
-                sed -i "/^$selected_pkg:/d" "$deps_file"
-                echo -e "${GREEN}\u2713 Removed from dependencies.conf${NC}"
-            fi
-
-            # Remove from README.md
-            local readme_file="$DOTFILES_DIR/README.md"
-            if grep -q "^- \\*\\*$selected_pkg\\*\\*" "$readme_file" 2>/dev/null; then
-                sed -i "/^- \\*\\*$selected_pkg\\*\\*/d" "$readme_file"
-                echo -e "${GREEN}\u2713 Removed from README.md${NC}"
-            fi
-
-            echo ""
-            echo -e "${GREEN}Package '$selected_pkg' fully removed.${NC}"
-            add_report "FULL REMOVE: $selected_pkg"
-            ;;
-        3)
-            echo "Cancelled."
-            return
-            ;;
-        *)
-            echo -e "${RED}Invalid choice${NC}"
-            ;;
-    esac
+        while IFS= read -r p; do pkgs+=("$p"); done < <(get_package_dirs)
     fi
 
-    echo ""
-    read -p "Delete another config? (y/N): " again
-    if [[ ! "$again" =~ ^[Yy]$ ]]; then
-        break
-    fi
-  done
-}
+    log_info "Restoring backups…"
+    echo
 
-main_menu() {
-    print_header
-    
-    if ! command_exists stow; then
-        echo -e "${RED}Error: GNU Stow is not installed. Please install it first.${NC}"
-        exit 1
-    fi
-
-    echo "1) Install/Update Configs"
-    echo "2) Restore Configs (Restore Backups)"
-    echo "3) Add New Config"
-    echo "4) Delete Config"
-    echo "5) Exit"
-    read -p "Select option: " opt
-    
-    case $opt in
-        1)
-            init_submodules
-            check_installed_packages
-            check_linked_configs
-            echo "Starting installation process..."
-             for pkg in */ ; do
-                pkg=${pkg%/}
-                if [[ "$pkg" == "setup.sh" || "$pkg" == "README.md" || "$pkg" == "LICENSE" || "$pkg" == ".git" ]]; then
-                    continue
-                fi
-                
-                install_config "$pkg"
-                echo "-----------------------------------"
-            done
-            ;;
-        2)
-            echo -e "${YELLOW}Starting restore process...${NC}"
-            GLOBAL_RESTORE_ACTION=""
-            
-            for pkg in */ ; do
-                pkg=${pkg%/}
-                [[ "$pkg" =~ ^(setup.sh|README.md|LICENSE|.git)$ ]] && continue
-                
-                restore_config "$pkg"
-            done
-            ;;
-        3)
-            add_new_config
-            ;;
-        4)
-            delete_config
-            ;;
-        5)
-            exit 0
-            ;;
-        *)
-            echo "Invalid option"
-            main_menu
-            ;;
-    esac
-    
-    echo ""
-    echo "================ REPORT ================"
-    for item in "${REPORT[@]}"; do
-        echo "$item"
+    local i=0
+    for pkg in "${pkgs[@]}"; do
+        i=$((i + 1))
+        if [[ ! -d "$DOTFILES_DIR/$pkg" ]]; then
+            log_error "Package '$pkg' not found."
+            continue
+        fi
+        printf "%s[%d/%d]%s " "$DIM" "$i" "${#pkgs[@]}" "$NC"
+        restore_config "$pkg"
     done
-    echo "========================================"
-    
-    read -p "Save report to file? (y/N): " save
-    if [[ "$save" =~ ^[Yy]$ ]]; then
-        timestamp=$(date +%Y%m%d_%H%M%S)
-        file="dotfiles_report_$timestamp.txt"
-        printf "%s\n" "${REPORT[@]}" > "$file"
-        echo "Report saved to $file"
-    fi
 }
 
-main_menu
+# ──────────────────────────────────────────────
+# Interactive Menu
+# ──────────────────────────────────────────────
+
+interactive_menu() {
+    while true; do
+        print_header
+
+        if ! command_exists stow; then
+            log_error "GNU Stow is not installed. Please install it first."
+            exit 1
+        fi
+
+        echo "  1) Link / Update Configs"
+        echo "  2) Restore Backups"
+        echo "  3) Add New Config"
+        echo "  4) Delete Config"
+        echo "  5) Show Status"
+        echo "  6) Exit"
+        echo
+        read -rp "Select [1-6]: " opt
+
+        # Reset per-run state
+        REPORT=()
+        GLOBAL_CONFLICT_ACTION=""
+        GLOBAL_LINK_ACTION=""
+        GLOBAL_RESTOW_ACTION=""
+        GLOBAL_RESTORE_ACTION=""
+
+        case "${opt:-6}" in
+            1) cmd_link ;;
+            2) cmd_restore ;;
+            3) add_new_config ;;
+            4) delete_config ;;
+            5) show_status ;;
+            6) exit 0 ;;
+            *) log_error "Invalid option." ;;
+        esac
+
+        print_report
+        echo
+        read -rp "Press Enter to continue…"
+    done
+}
+
+# ──────────────────────────────────────────────
+# Help
+# ──────────────────────────────────────────────
+
+usage() {
+    cat <<EOF
+Usage: $(basename "$0") [command] [options]
+
+Commands:
+  link [--all] [pkg …]      Link / update configs
+  restore [--all] [pkg …]   Restore backed-up configs
+  add                        Add a new config package (interactive)
+  delete                     Delete a config package (interactive)
+  status                     Show package & link status
+  help                       Show this help
+
+Options:
+  --dry-run   Show what would happen without making changes
+  --version   Print version and exit
+
+Examples:
+  ./setup.sh                   Interactive menu
+  ./setup.sh link --all        Link everything (backup on conflicts)
+  ./setup.sh link nvim zsh     Link specific packages
+  ./setup.sh status            Show overview
+  ./setup.sh --dry-run link    Link with dry-run
+EOF
+}
+
+# ──────────────────────────────────────────────
+# Entry Point
+# ──────────────────────────────────────────────
+
+main() {
+    local args=()
+    local arg
+    for arg in "$@"; do
+        case "$arg" in
+            --dry-run)  DRY_RUN=1 ;;
+            --version)  echo "setup.sh v${VERSION}"; exit 0 ;;
+            *)          args+=("$arg") ;;
+        esac
+    done
+
+    acquire_lock
+
+    if (( ${#args[@]} == 0 )); then
+        interactive_menu
+        # interactive_menu loops forever; unreachable
+    fi
+
+    local cmd="${args[0]}"
+    local cmd_args=("${args[@]:1}")
+
+    case "$cmd" in
+        link)                cmd_link "${cmd_args[@]+"${cmd_args[@]}"}" ;;
+        restore)             cmd_restore "${cmd_args[@]+"${cmd_args[@]}"}" ;;
+        add)                 add_new_config ;;
+        delete)              delete_config ;;
+        status)              show_status ;;
+        help|-h|--help)      usage ;;
+        *)                   log_error "Unknown command: $cmd"; echo; usage; exit 1 ;;
+    esac
+
+    print_report
+    release_lock
+}
+
+main "$@"
