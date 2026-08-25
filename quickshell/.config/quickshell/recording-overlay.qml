@@ -85,32 +85,18 @@ ShellRoot {
             property vector4d selectionRect: Qt.vector4d(shell.reqX, shell.reqY, shell.reqW, shell.reqH)
             property real dimOpacity: 0.65
             property vector2d screenSize: Qt.vector2d(overlayWindow.width, overlayWindow.height)
-            property real borderRadius: 4.0
-            property real outlineThickness: 1.5
+            property real borderRadius: 0.0
+            property real outlineThickness: 0.0
             fragmentShader: Qt.resolvedUrl("dimming.frag.qsb")
         }
 
-        // ── Red Recording Border ─────────────────────────────
+        // ── Red Recording Border (Strictly outside recording area, sharp corners) ──
         Rectangle {
             visible: shell.recordMode !== "fullscreen"
             x: shell.reqX - 2; y: shell.reqY - 2
             width: shell.reqW + 4; height: shell.reqH + 4
             color: "transparent"; border.color: '#c92a2a'; border.width: 2
-            radius: 5; opacity: 0.85; z: 1
-        }
-
-        // ── Corner + Mid-edge Handles ────────────────────────
-        Repeater {
-            model: (shell.recordMode !== "fullscreen" && shell.reqW > 30 && shell.reqH > 30) ? 8 : 0
-            delegate: Rectangle {
-                z: 2; width: 7; height: 7; radius: 1; color: "white"
-                border.color: Qt.rgba(0,0,0,0.55); border.width: 1
-                readonly property real hx: shell.reqX; readonly property real hy: shell.reqY
-                readonly property real hw: shell.reqW; readonly property real hh: shell.reqH
-                readonly property real mx: hx + hw / 2; readonly property real my: hy + hh / 2
-                x: [hx, mx, hx+hw, hx+hw, hx+hw, mx, hx, hx][index] - 3.5
-                y: [hy, hy, hy, my, hy+hh, hy+hh, hy+hh, my][index] - 3.5
-            }
+            radius: 0; opacity: 0.85; z: 1
         }
 
         // ── Size Badge ───────────────────────────────────────

@@ -25,47 +25,68 @@ ShellRoot {
         property real mouseYPos: 0
         property point startPos
         property bool dragging: false
-        property real fadeOpacity: 0.0
+        property bool selectionFinished: false
+        property string freezeImage: Quickshell.env("FREEZE_IMAGE") || ""
+        property real fadeOpacity: freezeImage !== "" ? 1.0 : 0.0
 
-        Component.onCompleted: { fadeOpacity = 0.0; fadeIn.restart() }
+        Component.onCompleted: {
+            if (win.freezeImage === "") {
+                fadeOpacity = 0.0
+                fadeIn.restart()
+            } else {
+                fadeOpacity = 1.0
+            }
+        }
 
         NumberAnimation {
             id: fadeIn; target: win; property: "fadeOpacity"
-            from: 0.0; to: 1.0; duration: 140; easing.type: Easing.OutCubic
+            from: 0.0; to: 1.0; duration: 90; easing.type: Easing.OutCubic
+        }
+
+        // ── Frozen Screen Background (when freeze mode is active) ──
+        Image {
+            anchors.fill: parent
+            visible: win.freezeImage !== "" && !win.selectionFinished
+            source: win.freezeImage !== "" ? ("file://" + win.freezeImage) : ""
+            fillMode: Image.PreserveAspectCrop
+            asynchronous: false
+            cache: false
+            z: 0
         }
 
         // ── GLSL Shader Dimming ──────────────────────────────
         ShaderEffect {
-            anchors.fill: parent; z: 0
+            anchors.fill: parent; z: 1
+            visible: !win.selectionFinished
             opacity: win.fadeOpacity
             property vector4d selectionRect: Qt.vector4d(win.selX, win.selY, win.selW, win.selH)
             property real dimOpacity: 0.72
             property vector2d screenSize: Qt.vector2d(win.width, win.height)
-            property real borderRadius: 0
-            property real outlineThickness: 1.5
+            property real borderRadius: 0.0
+            property real outlineThickness: 0.0
             fragmentShader: Qt.resolvedUrl("dimming.frag.qsb")
         }
 
         // ── Crosshair (pre-drag) — Rectangle-based ──────────
         // Shadow lines
         Rectangle {
-            visible: !win.dragging; opacity: win.fadeOpacity; z: 2
+            visible: !win.dragging && !win.selectionFinished; opacity: win.fadeOpacity; z: 2
             x: win.mouseXPos - 1.25; y: 0; width: 2.5; height: win.height
             color: Qt.rgba(0,0,0,0.45)
         }
         Rectangle {
-            visible: !win.dragging; opacity: win.fadeOpacity; z: 2
+            visible: !win.dragging && !win.selectionFinished; opacity: win.fadeOpacity; z: 2
             x: 0; y: win.mouseYPos - 1.25; width: win.width; height: 2.5
             color: Qt.rgba(0,0,0,0.45)
         }
         // White lines
         Rectangle {
-            visible: !win.dragging; opacity: win.fadeOpacity; z: 3
+            visible: !win.dragging && !win.selectionFinished; opacity: win.fadeOpacity; z: 3
             x: win.mouseXPos - 0.5; y: 0; width: 1; height: win.height
             color: Qt.rgba(1,1,1,0.92)
         }
         Rectangle {
-            visible: !win.dragging; opacity: win.fadeOpacity; z: 3
+            visible: !win.dragging && !win.selectionFinished; opacity: win.fadeOpacity; z: 3
             x: 0; y: win.mouseYPos - 0.5; width: win.width; height: 1
             color: Qt.rgba(1,1,1,0.92)
         }
@@ -73,50 +94,50 @@ ShellRoot {
         // ── Edge Guides (during drag) — Rectangle-based ─────
         // Shadow lines (4 edges)
         Rectangle {
-            visible: win.dragging; opacity: win.fadeOpacity; z: 2
+            visible: win.dragging && !win.selectionFinished; opacity: win.fadeOpacity; z: 2
             x: win.selX - 1.25; y: 0; width: 2.5; height: win.height
             color: Qt.rgba(0,0,0,0.45)
         }
         Rectangle {
-            visible: win.dragging; opacity: win.fadeOpacity; z: 2
+            visible: win.dragging && !win.selectionFinished; opacity: win.fadeOpacity; z: 2
             x: win.selX + win.selW - 1.25; y: 0; width: 2.5; height: win.height
             color: Qt.rgba(0,0,0,0.45)
         }
         Rectangle {
-            visible: win.dragging; opacity: win.fadeOpacity; z: 2
+            visible: win.dragging && !win.selectionFinished; opacity: win.fadeOpacity; z: 2
             x: 0; y: win.selY - 1.25; width: win.width; height: 2.5
             color: Qt.rgba(0,0,0,0.45)
         }
         Rectangle {
-            visible: win.dragging; opacity: win.fadeOpacity; z: 2
+            visible: win.dragging && !win.selectionFinished; opacity: win.fadeOpacity; z: 2
             x: 0; y: win.selY + win.selH - 1.25; width: win.width; height: 2.5
             color: Qt.rgba(0,0,0,0.45)
         }
         // White lines (4 edges)
         Rectangle {
-            visible: win.dragging; opacity: win.fadeOpacity; z: 3
+            visible: win.dragging && !win.selectionFinished; opacity: win.fadeOpacity; z: 3
             x: win.selX - 0.5; y: 0; width: 1; height: win.height
             color: Qt.rgba(1,1,1,0.92)
         }
         Rectangle {
-            visible: win.dragging; opacity: win.fadeOpacity; z: 3
+            visible: win.dragging && !win.selectionFinished; opacity: win.fadeOpacity; z: 3
             x: win.selX + win.selW - 0.5; y: 0; width: 1; height: win.height
             color: Qt.rgba(1,1,1,0.92)
         }
         Rectangle {
-            visible: win.dragging; opacity: win.fadeOpacity; z: 3
+            visible: win.dragging && !win.selectionFinished; opacity: win.fadeOpacity; z: 3
             x: 0; y: win.selY - 0.5; width: win.width; height: 1
             color: Qt.rgba(1,1,1,0.92)
         }
         Rectangle {
-            visible: win.dragging; opacity: win.fadeOpacity; z: 3
+            visible: win.dragging && !win.selectionFinished; opacity: win.fadeOpacity; z: 3
             x: 0; y: win.selY + win.selH - 0.5; width: win.width; height: 1
             color: Qt.rgba(1,1,1,0.92)
         }
 
         // ── Corner + Mid-edge Handles ────────────────────────
         Repeater {
-            model: (win.dragging && win.selW > 30 && win.selH > 30) ? 8 : 0
+            model: (win.dragging && !win.selectionFinished && win.selW > 30 && win.selH > 30) ? 8 : 0
             delegate: Rectangle {
                 z: 11; width: 7; height: 7; radius: 1; color: "white"
                 border.color: Qt.rgba(0,0,0,0.55); border.width: 1
@@ -129,13 +150,11 @@ ShellRoot {
             }
         }
 
-
-
         property string selectorMode: Quickshell.env("SELECTOR_MODE") || ""
 
         // ── Size Badge ───────────────────────────────────────
         Rectangle {
-            visible: win.dragging && win.selW > 20
+            visible: win.dragging && !win.selectionFinished && win.selW > 20
             opacity: win.fadeOpacity
             x: Math.max(4, Math.min(win.selX + win.selW / 2 - width / 2, win.width - width - 4))
             y: win.selY > height + 8 ? win.selY - height - 8 : win.selY + win.selH + 8
@@ -151,7 +170,7 @@ ShellRoot {
 
         // ── Cursor Coordinates & Mode ────────────────────────
         Rectangle {
-            visible: !win.dragging; opacity: win.fadeOpacity; z: 10
+            visible: !win.dragging && !win.selectionFinished; opacity: win.fadeOpacity; z: 10
             width: coordLabel.implicitWidth + 16; height: coordLabel.implicitHeight + 10; radius: 5
             color: Qt.rgba(0, 0, 0, 0.72)
             x: { var bx = win.mouseXPos + 18; return bx + width > win.width - 4 ? win.mouseXPos - width - 18 : bx }
@@ -190,7 +209,8 @@ ShellRoot {
 
             onReleased: (mouse) => {
                 if (mouse.button === Qt.RightButton) return
-                win.dragging = false
+                win.selectionFinished = true
+                win.visible = false
                 var w = Math.round(win.selW), h = Math.round(win.selH)
                 if (w > 4 && h > 4) {
                     var gx = Math.round(win.selX)

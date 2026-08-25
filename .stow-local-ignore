@@ -26,3 +26,6 @@ _darcs
 setup.sh
 dependencies.conf
 dotfiles_report_*.txt
+
+docs/
+tests/
