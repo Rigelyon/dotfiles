@@ -67,10 +67,14 @@ hl.bind("xf86AudioPrev", hl.dsp.exec_cmd(ipc .. "media previous"), { locked = tr
 hl.bind("Print", hl.dsp.exec_cmd(scriptsDir .. "/screenshot.sh -m fullscreen"), { description = "Screenshot" })
 hl.bind(mainMod .. " + " .. "Print", hl.dsp.exec_cmd(scriptsDir .. "/screenshot.sh -m area"),
     { description = "Screenshot Area" })
-hl.bind("SHIFT" .. " + " .. "Print", hl.dsp.exec_cmd(scriptsDir .. "/record.sh -M fullscreen -a -m"),
+hl.bind("SHIFT" .. " + " .. "Print", hl.dsp.exec_cmd(ipc .. "plugin noctalia/screen_recorder:service all toggle"),
     { description = "Record Screen" })
 hl.bind(mainMod .. " + " .. "SHIFT" .. " + " .. "Print", hl.dsp.exec_cmd(scriptsDir .. "/record.sh -M area -a -m"),
     { description = "Record Area" })
+-- hl.bind("SHIFT" .. " + " .. "Print", hl.dsp.exec_cmd(scriptsDir .. "/record.sh -M fullscreen -a -m"),
+--     { description = "Record Screen" })
+-- hl.bind(mainMod .. " + " .. "SHIFT" .. " + " .. "Print", hl.dsp.exec_cmd(scriptsDir .. "/record.sh -M area -a -m"),
+--     { description = "Record Area" })
 
 -- -- Tools --
 hl.bind(mainMod .. " + " .. "Insert", hl.dsp.exec_cmd(scriptsDir .. "/ocr_scan.sh"), { description = "OCR Scan" })

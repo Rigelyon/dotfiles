@@ -5,3 +5,5 @@ micro/.config/micro/buffers*
 .env
 *env_variables.local.conf
 env_variables.local.conf
+*env_variables.local.lua
+env_variables.local.lua
